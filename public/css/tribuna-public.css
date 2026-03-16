@@ -1,0 +1,1797 @@
+/* ========== BOOKING WRAPPER & STEPS ========== */
+
+.tsrb-booking-wrapper {
+    border: 1px solid #ddd;
+    padding: 16px;
+    background: #fff;
+    max-width: 900px;
+    margin: 0 auto 24px;
+    box-sizing: border-box;
+}
+
+.tsrb-booking-steps {
+    display: flex;
+    margin-bottom: 16px;
+    flex-wrap: nowrap;
+}
+
+.tsrb-step {
+    flex: 1;
+    padding: 8px 10px;
+    text-align: center;
+    border-bottom: 2px solid #ddd;
+    background: #f5f5f5;
+    font-size: 13px;
+    box-sizing: border-box;
+}
+
+.tsrb-step.tsrb-step-active {
+    border-bottom-color: #212062;
+    background: #e5e7ff;
+    font-weight: 600;
+}
+
+.tsrb-step-panel {
+    display: none;
+    margin-top: 8px;
+}
+
+.tsrb-step-panel-active {
+    display: block;
+}
+
+.tsrb-step-actions {
+    margin-top: 16px;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* ========== PRIMARY BUTTON SYSTEM (BOOKING) ========== */
+
+.tsrb-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 18px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    line-height: 1.3;
+    box-sizing: border-box;
+    transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.tsrb-btn-primary {
+    background: #212062;
+    border-color: #212062;
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(33, 32, 98, 0.35);
+}
+
+.tsrb-btn-primary:hover {
+    background: #35348a;
+    border-color: #35348a;
+    box-shadow: 0 3px 10px rgba(33, 32, 98, 0.45);
+}
+
+.tsrb-btn-secondary {
+    background: #ffffff;
+    border-color: #d0d4e8;
+    color: #212062;
+}
+
+.tsrb-btn-secondary:hover {
+    border-color: #212062;
+    box-shadow: 0 2px 6px rgba(33, 32, 98, 0.18);
+}
+
+.tsrb-btn-ghost {
+    background: transparent;
+    border-color: transparent;
+    color: #444;
+}
+
+.tsrb-btn-ghost:hover {
+    background: #f0f0ff;
+    border-color: #d0d4f0;
+}
+
+.tsrb-step-actions .tsrb-btn {
+    min-width: 160px;
+}
+
+/* WordPress .button compat */
+.tsrb-btn.button {
+    border-radius: 999px;
+}
+
+/* ========== ACCOUNT STATUS BAR ========== */
+
+.tsrb-account-status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+    border-radius: 8px;
+    background: #f4f5ff;
+    border: 1px solid #dde0ff;
+    font-size: 13px;
+    box-sizing: border-box;
+}
+
+.tsrb-account-status-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.tsrb-account-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #212062;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.tsrb-account-avatar-guest {
+    background: #c0c2ff;
+    color: #212062;
+    font-weight: 700;
+}
+
+.tsrb-account-status-text {
+    line-height: 1.4;
+}
+
+.tsrb-account-status-line {
+    font-weight: 500;
+    color: #222;
+}
+
+.tsrb-account-status-line strong {
+    margin-left: 4px;
+}
+
+.tsrb-account-status-sub {
+    color: #555;
+    font-size: 12px;
+}
+
+.tsrb-account-status-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.tsrb-account-status-link {
+    border: none;
+    background: transparent;
+    color: #212062;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 6px 10px;
+    border-radius: 999px;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.tsrb-account-status-link-primary {
+    background: #212062;
+    color: #ffffff;
+}
+
+.tsrb-account-status-link-primary:hover {
+    background: #35348a;
+}
+
+.tsrb-account-status-link:hover:not(.tsrb-account-status-link-primary) {
+    text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+    .tsrb-account-status {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .tsrb-account-status-right {
+        align-self: stretch;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+    }
+}
+
+/* ========== STUDIO CARDS ========== */
+
+.tsrb-studio-select-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.tsrb-studio-card {
+    display: flex;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 8px;
+    gap: 8px;
+    align-items: center;
+    cursor: pointer;
+    max-width: 100%;
+    background: #fafafa;
+    box-sizing: border-box;
+}
+
+.tsrb-studio-card input[type="radio"] {
+    margin-right: 6px;
+}
+
+.tsrb-studio-card-selected {
+    border-color: #2271b1;
+    box-shadow: 0 0 0 1px #2271b133;
+    background: #e5f1fb;
+}
+
+.tsrb-studio-image img {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 3px;
+    border: 1px solid #ddd;
+}
+
+.tsrb-studio-image-placeholder {
+    width: 80px;
+    height: 80px;
+    border-radius: 3px;
+    border: 1px dashed #ddd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    color: #777;
+}
+
+.tsrb-studio-info {
+    flex: 1;
+}
+
+.tsrb-studio-name {
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+.tsrb-studio-desc {
+    font-size: 12px;
+    color: #555;
+}
+
+/* ========== TIME SLOTS ========== */
+
+.tsrb-slots-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.tsrb-slot-item {
+    border: 1px solid #ccc;
+    padding: 6px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    width: calc(50% - 4px);
+    box-sizing: border-box;
+    font-size: 12px;
+}
+
+.tsrb-slot-available {
+    background: #e7f9e7;
+    border-color: #3c9c3c;
+    color: #174417;
+}
+
+.tsrb-slot-available .tsrb-slot-status {
+    font-weight: 600;
+    color: #1f6b1f;
+}
+
+.tsrb-slot-booked {
+    background: #e0e0e0;
+    color: #555;
+    cursor: not-allowed;
+    border-color: #999;
+}
+
+.tsrb-slot-booked .tsrb-slot-status {
+    font-weight: 600;
+    color: #333;
+}
+
+.tsrb-slot-selected {
+    border-color: #2271b1;
+    box-shadow: 0 0 0 2px #2271b155;
+}
+
+/* ========== ADD-ONS ========== */
+
+.tsrb-addons-wrapper {
+    margin-top: 16px;
+}
+
+.tsrb-addon-item {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 8px;
+    border: 1px solid #eee;
+    padding: 6px 8px;
+    border-radius: 3px;
+    background: #fafafa;
+    box-sizing: border-box;
+}
+
+.tsrb-addon-left {
+    margin-right: 8px;
+    padding-top: 3px;
+}
+
+.tsrb-addon-right {
+    flex: 1;
+}
+
+.tsrb-addon-name {
+    font-weight: 600;
+}
+
+.tsrb-addon-price {
+    font-size: 12px;
+    color: #444;
+    margin-left: 6px;
+}
+
+.tsrb-addon-desc {
+    font-size: 12px;
+    color: #666;
+}
+
+/* ========== PRICING SUMMARY ========== */
+
+.tsrb-pricing-summary {
+    margin-top: 16px;
+    border-top: 1px dashed #ccc;
+    padding-top: 8px;
+}
+
+.tsrb-pricing-table {
+    border-collapse: collapse;
+    width: 100%;
+    max-width: 420px;
+}
+
+.tsrb-pricing-table th,
+.tsrb-pricing-table td {
+    padding: 4px 6px;
+    font-size: 13px;
+    text-align: left;
+}
+
+.tsrb-pricing-table th {
+    width: 40%;
+    color: #333;
+}
+
+.tsrb-pricing-table tr:nth-child(even) {
+    background: #fafafa;
+}
+
+.tsrb-pricing-total-row {
+    background: #fff6da;
+}
+
+.tsrb-pricing-total-row td span {
+    font-weight: 700;
+    color: #b15a00;
+}
+
+/* ========== BOOKING SUMMARY (INVOICE) ========== */
+
+.tsrb-summary-invoice {
+    margin-bottom: 16px;
+    border: 1px solid #ccc;
+    padding: 10px;
+    background: #fff;
+    box-sizing: border-box;
+}
+
+.tsrb-invoice-header {
+    text-align: left;
+    margin-bottom: 8px;
+}
+
+.tsrb-invoice-title {
+    text-align: center;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.tsrb-invoice-meta {
+    font-size: 12px;
+}
+
+.tsrb-invoice-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.tsrb-invoice-table th,
+.tsrb-invoice-table td {
+    border: 1px solid #000;
+    padding: 4px 6px;
+    vertical-align: top;
+}
+
+.tsrb-invoice-col-item {
+    width: 30%;
+}
+
+.tsrb-invoice-col-detail {
+    width: 45%;
+}
+
+.tsrb-invoice-col-subtotal {
+    width: 25%;
+    text-align: right;
+}
+
+.tsrb-invoice-cell-item {
+    font-weight: 500;
+}
+
+.tsrb-invoice-cell-subtotal {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.tsrb-invoice-row-total .tsrb-invoice-cell-item {
+    font-weight: 700;
+}
+
+.tsrb-invoice-row-total .tsrb-invoice-total-amount {
+    font-weight: 700;
+    background: #fff6da;
+    color: #b15a00;
+}
+
+.tsrb-download-invoice-wrapper {
+    margin-top: 16px;
+}
+
+
+/* ========== COUPON ========== */
+
+.tsrb-coupon-area {
+    margin: 8px 0 16px;
+}
+
+.tsrb-coupon-area .tsrb-form-field {
+    margin-bottom: 8px;
+}
+
+.tsrb-coupon-area input[type="text"] {
+    width: 100%;
+    max-width: 320px;
+    box-sizing: border-box;
+}
+
+#tsrb-coupon-message {
+    display: inline-block;
+    margin-left: 8px;
+    font-size: 12px;
+}
+
+/* ========== PAYMENT ========== */
+
+.tsrb-payment-qr {
+    text-align: center;
+    margin: 10px 0;
+}
+
+.tsrb-payment-qr img {
+    max-width: 220px;
+    height: auto;
+    border: 1px solid #ddd;
+    padding: 4px;
+    border-radius: 4px;
+    background: #fff;
+}
+
+.tsrb-payment-info {
+    font-size: 12px;
+    color: #555;
+    margin-top: 6px;
+}
+
+.tsrb-payment-note {
+    font-style: italic;
+}
+
+/* Total Bayar (Step 3) */
+
+.tsrb-final-total-wrapper {
+    text-align: center;
+}
+
+.tsrb-final-total {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 12px;
+    margin-bottom: 16px;
+    padding: 10px 16px;
+    border-radius: 999px;
+    background: #fff6da;
+    border: 1px solid #e2c46f;
+    font-size: 14px;
+}
+
+.tsrb-final-total-label {
+    font-weight: 600;
+    color: #7a4a00;
+    margin-right: 4px;
+}
+
+.tsrb-final-total-amount {
+    font-weight: 700;
+    color: #b15a00;
+}
+
+/* Wrapper tombol di Step 3: Booking Policy + WhatsApp */
+
+.tsrb-whatsapp-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+/* ========== GENERIC MESSAGES ========== */
+
+.tsrb-info {
+    color: #444;
+    font-size: 13px;
+}
+
+.tsrb-error {
+    color: #a00;
+    font-size: 13px;
+}
+
+.tsrb-success {
+    color: #008000;
+    font-size: 13px;
+}
+
+/* ========== PUBLIC CALENDAR WRAPPER ========== */
+
+.tsrb-public-calendar-wrapper {
+    border: 1px solid #ddd;
+    padding: 16px;
+    background: #fff;
+    max-width: 900px;
+    margin: 0 auto 24px;
+    box-sizing: border-box;
+}
+
+.tsrb-public-studio-select {
+    margin-bottom: 8px;
+}
+
+.tsrb-calendar-legend {
+    margin-top: 8px;
+    font-size: 12px;
+}
+
+.tsrb-legend-item {
+    display: inline-block;
+    margin-right: 12px;
+}
+
+/* FullCalendar date states */
+
+.tsrb-date-past .fc-daygrid-day-number {
+    color: #bbb !important;
+}
+
+.tsrb-date-past {
+    background-color: #f5f5f5 !important;
+    cursor: not-allowed;
+}
+
+.tsrb-date-future {
+    cursor: pointer;
+}
+
+.tsrb-date-future:hover {
+    background-color: #f0f7ff !important;
+}
+
+.tsrb-date-selected {
+    box-shadow: inset 0 0 0 2px #212062;
+    background-color: #e5e7ff !important;
+}
+
+/* Background event color classes (availability) */
+
+.fc-available {
+    background-color: rgba(0, 128, 0, 0.18) !important;
+}
+
+.fc-partial {
+    background-color: rgba(255, 215, 0, 0.28) !important;
+}
+
+.fc-full {
+    background-color: rgba(220, 20, 60, 0.28) !important;
+}
+
+/* ========== BOOKING CALENDAR & SELECTED DATE UI ========== */
+
+.tsrb-booking-calendar-wrap {
+    margin-bottom: 12px;
+}
+
+.tsrb-selected-date-box {
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: #f4f5ff;
+    border: 1px solid #dde0ff;
+    display: inline-block;
+    max-width: 100%;
+    margin-bottom: 14px;
+}
+
+.tsrb-selected-date {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 15px;
+    color: #222;
+}
+
+.tsrb-selected-date-label {
+    font-weight: 700;
+    font-size: 15px;
+}
+
+.tsrb-selected-date-text {
+    font-weight: 700;
+    font-size: 16px;
+    color: #212062;
+}
+
+.tsrb-selected-date-help {
+    margin-top: 4px;
+    font-size: 12px;
+    color: #555;
+}
+
+.tsrb-selected-date-help-empty {
+    opacity: 1;
+}
+
+/* ========== RESPONSIVE (BOOKING & CALENDAR) ========== */
+
+/* Tablet (<= 1024px) */
+@media (max-width: 1024px) {
+    .tsrb-booking-wrapper,
+    .tsrb-public-calendar-wrapper {
+        padding: 14px;
+    }
+
+    .tsrb-booking-steps {
+        font-size: 12px;
+    }
+
+    .tsrb-step {
+        padding: 8px 6px;
+    }
+
+    .tsrb-pricing-table {
+        max-width: 100%;
+    }
+}
+
+/* Tablet/Phablet (<= 768px) */
+@media (max-width: 768px) {
+    .tsrb-booking-wrapper,
+    .tsrb-public-calendar-wrapper {
+        padding: 12px;
+    }
+
+    .tsrb-booking-steps {
+        flex-wrap: wrap;
+    }
+
+    .tsrb-step {
+        font-size: 12px;
+    }
+
+    .tsrb-studio-select-list {
+        flex-direction: column;
+    }
+
+    .tsrb-studio-card {
+        width: 100%;
+    }
+
+    .tsrb-slot-item {
+        width: 100%;
+    }
+
+    .tsrb-step-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .tsrb-step-actions .tsrb-btn {
+        flex: 1 1 auto;
+        width: 100%;
+        justify-content: center;
+    }
+
+    .tsrb-whatsapp-wrapper {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .tsrb-whatsapp-wrapper .tsrb-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* Mobile kecil (<= 600px) */
+@media (max-width: 600px) {
+    .tsrb-invoice-table {
+        font-size: 12px;
+    }
+}
+
+/* ========== ARROW STEP INDICATOR (CHEVRON STYLE) ========== */
+
+.tsrb-booking-steps.tsrb-steps-arrow {
+    display: flex;
+    margin-bottom: 20px;
+    background: #e8f3f9;
+    border-radius: 4px;
+    overflow: hidden;
+    border: 1px solid #c5dbe6;
+    position: relative;
+}
+
+.tsrb-steps-arrow .tsrb-step {
+    position: relative;
+    flex: 1;
+    padding: 14px 32px 14px 24px;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: center;
+    background: #5b5a9a;
+    border-bottom: none;
+    transition: background 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.tsrb-steps-arrow .tsrb-step:first-child {
+    padding-left: 18px;
+}
+
+.tsrb-steps-arrow .tsrb-step:last-child {
+    padding-right: 18px;
+}
+
+.tsrb-steps-arrow .tsrb-step::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: -20px;
+    width: 0;
+    height: 0;
+    border-top: 25px solid transparent;
+    border-bottom: 25px solid transparent;
+    border-left: 20px solid #5b5a9a;
+    z-index: 2;
+    transition: border-left-color 0.3s ease, background 0.3s ease;
+}
+
+.tsrb-steps-arrow .tsrb-step:last-child::after {
+    display: none;
+}
+
+.tsrb-steps-arrow .tsrb-step::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 1px;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.tsrb-steps-arrow .tsrb-step:first-child::before {
+    display: none;
+}
+
+/* aktif */
+.tsrb-steps-arrow .tsrb-step.tsrb-step-active {
+    background: #212062;
+    color: #ffffff;
+}
+
+.tsrb-steps-arrow .tsrb-step.tsrb-step-active::after {
+    border-left-color: #212062;
+}
+
+/* completed */
+.tsrb-steps-arrow .tsrb-step.tsrb-step-completed {
+    background: #35348a;
+    color: #ffffff;
+}
+
+.tsrb-steps-arrow .tsrb-step.tsrb-step-completed::after {
+    border-left-color: #35348a;
+}
+
+.tsrb-step-number {
+    font-weight: 700;
+    font-size: 15px;
+}
+
+.tsrb-step-label {
+    white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+    .tsrb-steps-arrow .tsrb-step {
+        padding: 10px 20px 10px 14px;
+        font-size: 12px;
+    }
+
+    .tsrb-step-label {
+        white-space: normal;
+        font-size: 11px;
+    }
+
+    .tsrb-steps-arrow .tsrb-step::after {
+        border-top: 20px solid transparent;
+        border-bottom: 20px solid transparent;
+        border-left-width: 16px;
+        right: -16px;
+    }
+}
+
+/* ========== LOGIN NOTICE & BUTTON HELPERS ========== */
+
+.tsrb-login-notice {
+    font-size: 13px;
+    color: #444;
+    margin-bottom: 12px;
+    background: #fff6da;
+    border: 1px solid #e2c46f;
+    padding: 8px 10px;
+    border-radius: 3px;
+}
+
+.tsrb-auth-buttons {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.tsrb-open-login-modal {
+    margin-top: 6px;
+}
+
+/* ========== STEP 2 FORM (DATA ANDA) ========== */
+
+.tsrb-form-stacked {
+    max-width: 480px;
+    margin-top: 8px;
+}
+
+.tsrb-form-field {
+    margin-bottom: 12px;
+}
+
+.tsrb-form-field label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: #222;
+}
+
+.tsrb-form-field input[type="text"],
+.tsrb-form-field input[type="email"],
+.tsrb-form-field input[type="tel"],
+.tsrb-form-field textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid #d0d4e8;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.tsrb-form-field input::placeholder,
+.tsrb-form-field textarea::placeholder {
+    color: #9da2b8;
+}
+
+.tsrb-form-field input:focus,
+.tsrb-form-field textarea:focus {
+    outline: none;
+    border-color: #212062;
+    box-shadow: 0 0 0 1px rgba(33, 32, 98, 0.18);
+}
+
+/* ========== AUTH MODAL – NEW CARD STYLE ========== */
+
+.tsrb-auth-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: none;
+}
+
+.tsrb-auth-modal-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+}
+
+.tsrb-auth-card {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100%;
+    max-width: 420px;
+    transform: translate(-50%, -50%);
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 24px 26px 26px;
+    box-shadow: 0 18px 55px rgba(0, 0, 0, 0.25);
+    box-sizing: border-box;
+    font-size: 15px;
+}
+
+.tsrb-auth-modal-close {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    border: none;
+    background: transparent;
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+    color: #888;
+}
+
+.tsrb-auth-modal-close:hover {
+    color: #111;
+}
+
+.tsrb-auth-card-header {
+    text-align: center;
+    margin-bottom: 14px;
+}
+
+.tsrb-auth-card-icon {
+    width: 52px;
+    height: 52px;
+    margin: 0 auto 8px;
+    border-radius: 50%;
+    background: #e7ecff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 16px;
+    color: #212062;
+}
+
+.tsrb-auth-tabs {
+    display: inline-flex;
+    border-radius: 999px;
+    background: #f2f4ff;
+    padding: 3px;
+}
+
+.tsrb-auth-tab {
+    border: none;
+    background: transparent;
+    padding: 6px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 999px;
+    cursor: pointer;
+    color: #555;
+}
+
+.tsrb-auth-tab-active {
+    background: #212062;
+    color: #ffffff;
+}
+
+.tsrb-auth-tab-panel {
+    display: none;
+}
+
+.tsrb-auth-tab-panel-active {
+    display: block;
+}
+
+.tsrb-auth-title {
+    text-align: center;
+    font-size: 22px;
+    font-weight: 700;
+    margin: 10px 0 18px;
+    color: #111;
+}
+
+.tsrb-auth-field {
+    margin-bottom: 12px;
+}
+
+.tsrb-auth-field label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: #333;
+}
+
+.tsrb-auth-input-wrap {
+    position: relative;
+}
+
+.tsrb-auth-input-icon {
+    position: absolute;
+    left: 9px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 14px;
+    color: #999;
+}
+
+.tsrb-auth-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 9px 10px 9px 30px;
+    border-radius: 8px;
+    border: 1px solid #dde1f0;
+    font-size: 14px;
+}
+
+.tsrb-auth-input:focus {
+    outline: none;
+    border-color: #212062;
+    box-shadow: 0 0 0 1px rgba(33, 32, 98, 0.15);
+}
+
+.tsrb-auth-row-inline {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    margin-bottom: 12px;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.tsrb-auth-remember {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.tsrb-auth-link {
+    color: #212062;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.tsrb-auth-link:hover {
+    text-decoration: underline;
+}
+
+.tsrb-btn-auth {
+    width: 100%;
+    border-radius: 999px;
+    padding: 10px 16px;
+    border: none;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.tsrb-btn-auth-primary {
+    background: #212062;
+    color: #ffffff;
+}
+
+.tsrb-btn-auth-primary:hover {
+    background: #35348a;
+}
+
+.tsrb-auth-switch {
+    margin-top: 14px;
+    font-size: 13px;
+    text-align: center;
+    color: #555;
+}
+
+.tsrb-auth-message {
+    margin-top: 10px;
+    font-size: 13px;
+    min-height: 16px;
+}
+
+@media (max-width: 480px) {
+    .tsrb-auth-card {
+        padding: 20px 18px 22px;
+        max-width: 92%;
+    }
+}
+
+/* ========== USER DASHBOARD (FRONTEND) ========== */
+
+.tsrb-user-dashboard {
+    border: 1px solid #ddd;
+    padding: 16px;
+    background: #ffffff;
+    max-width: 900px;
+    margin: 0 auto 24px;
+    box-sizing: border-box;
+}
+
+.tsrb-user-dashboard-title {
+    margin-top: 0;
+    margin-bottom: 12px;
+}
+
+.tsrb-user-dashboard-section {
+    margin-bottom: 20px;
+}
+
+.tsrb-user-dashboard-section h3 {
+    margin-top: 0;
+    margin-bottom: 8px;
+}
+
+.tsrb-user-dashboard-empty {
+    font-size: 13px;
+    color: #666;
+}
+
+/* Table styling */
+
+.tsrb-user-bookings-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.tsrb-user-bookings-table th,
+.tsrb-user-bookings-table td {
+    padding: 6px 8px;
+    border: 1px solid #ddd;
+    text-align: left;
+}
+
+.tsrb-user-bookings-table th {
+    background: #f7f7f7;
+    font-weight: 600;
+}
+
+.tsrb-user-bookings-table tr:nth-child(even) {
+    background: #fafafa;
+}
+
+/* Row coloring by status */
+
+.tsrb-user-booking-row-status-pending_payment {
+    background-color: #fffaf0;
+}
+
+.tsrb-user-booking-row-status-paid {
+    background-color: #e7f9e7;
+}
+
+.tsrb-user-booking-row-status-cancelled {
+    background-color: #f4f4f4;
+    color: #777;
+}
+
+@media (max-width: 640px) {
+    .tsrb-user-bookings-table th,
+    .tsrb-user-bookings-table td {
+        font-size: 12px;
+        padding: 4px 6px;
+    }
+}
+
+/* Aturan di dashboard (booking / reschedule / cancellation) */
+.tsrb-user-dashboard-note {
+    font-size: 13px;
+    color: #374151;
+    margin-top: 10px;
+}
+
+.tsrb-user-dashboard-note strong {
+    display: inline-block;
+    margin-bottom: 4px;
+    color: #111827;
+}
+
+.tsrb-user-dashboard-note ul {
+    margin: 4px 0 0;
+    padding-left: 18px;
+    list-style-type: disc;
+}
+
+.tsrb-user-dashboard-note li {
+    margin-bottom: 2px;
+}
+
+/* ========== PROFILE PAGE / MODAL (FRONTEND) ========== */
+
+.tsrb-profile-wrapper {
+    border: 1px solid #ddd;
+    padding: 16px;
+    background: #ffffff;
+    max-width: 900px;
+    margin: 0 auto 24px;
+    box-sizing: border-box;
+}
+
+/* ketika dipakai di dalam modal */
+.tsrb-profile-wrapper--modal {
+    border: none;
+    max-width: 100%;
+    padding: 4px 0 0;
+    margin: 0;
+}
+
+.tsrb-profile-title {
+    margin-top: 0;
+    margin-bottom: 4px;
+    font-size: 20px;
+}
+
+.tsrb-profile-subtitle {
+    margin: 0;
+    font-size: 13px;
+    color: #6b7280;
+}
+
+.tsrb-profile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.tsrb-profile-header-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.tsrb-profile-header-actions {
+    white-space: nowrap;
+}
+
+.tsrb-profile-notice {
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    margin-bottom: 10px;
+}
+
+.tsrb-profile-notice--success {
+    background: #e7f9e7;
+    border: 1px solid #7bbf7b;
+    color: #174417;
+}
+
+.tsrb-profile-notice--error {
+    background: #ffecec;
+    border: 1px solid #e58a8a;
+    color: #7c1515;
+}
+
+/* kartu generik di dalam profil */
+.tsrb-profile-card {
+    border-radius: 12px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    padding: 14px 16px;
+    box-sizing: border-box;
+}
+
+/* Ringkasan akun di My Profile */
+
+.tsrb-profile-account-summary {
+    display: flex;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    box-sizing: border-box;
+}
+
+.tsrb-profile-account-summary-left,
+.tsrb-profile-account-summary-right {
+    flex: 1;
+    min-width: 0;
+}
+
+.tsrb-account-id-row {
+    margin: 0 0 4px;
+}
+
+.tsrb-account-id-row strong {
+    margin-right: 4px;
+}
+
+.tsrb-account-id-value {
+    font-weight: 600;
+}
+
+.tsrb-account-identifier {
+    margin: 0 0 2px;
+}
+
+.tsrb-account-identifier-value {
+    font-weight: 700;
+    color: #212062;
+}
+
+.tsrb-account-username-note {
+    margin: 2px 0 10px;
+    color: #6b7280;
+    font-size: 11px;
+}
+
+.tsrb-account-dates {
+    margin: 0;
+}
+
+.tsrb-account-date-item {
+    display: inline-block;
+    margin-right: 12px;
+    margin-top: 2px;
+}
+
+.tsrb-account-booking-stats {
+    margin: 0 0 10px;
+}
+
+.tsrb-account-booking-stat-item {
+    display: inline-block;
+    margin-right: 12px;
+}
+
+.tsrb-account-whatsapp {
+    margin: 0;
+}
+
+@media (max-width: 640px) {
+    .tsrb-profile-account-summary {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+/* Kolom form di bawah */
+
+.tsrb-profile-columns {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.tsrb-profile-column {
+    flex: 1;
+    min-width: 260px;
+}
+
+.tsrb-profile-section-title {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.tsrb-profile-form {
+    margin-bottom: 4px;
+}
+
+.tsrb-profile-form .tsrb-field {
+    margin-bottom: 10px;
+}
+
+.tsrb-field-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: #111827;
+}
+
+.tsrb-profile-form input[type="text"],
+.tsrb-profile-form input[type="email"],
+.tsrb-profile-form input[type="password"] {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid #d1d5db;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.tsrb-profile-form input[type="text"]:focus,
+.tsrb-profile-form input[type="email"]:focus,
+.tsrb-profile-form input[type="password"]:focus {
+    outline: none;
+    border-color: #212062;
+    box-shadow: 0 0 0 1px rgba(33, 32, 98, 0.18);
+}
+
+.tsrb-field-help {
+    display: block;
+    font-size: 11px;
+    color: #6b7280;
+    margin-top: 2px;
+}
+
+.tsrb-actions {
+    margin-top: 8px;
+}
+
+.tsrb-actions .tsrb-btn-primary,
+.tsrb-actions .tsrb-btn-secondary {
+    min-width: 130px;
+}
+
+.tsrb-actions--between {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* tombol logout di profil */
+.tsrb-profile-separator {
+    margin: 18px 0 12px;
+    border: 0;
+    border-top: 1px solid #e5e7eb;
+}
+
+.tsrb-logout-section {
+    margin-top: 4px;
+}
+
+.tsrb-btn-logout {
+    min-width: 120px;
+}
+
+/* ========== ACCOUNT MODALS (HISTORY & PROFILE) ========== */
+
+.tsrb-account-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 9998;
+    display: none;
+}
+
+.tsrb-account-modal-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+}
+
+.tsrb-account-modal-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100%;
+    max-width: 900px;
+    max-height: 90vh;
+    transform: translate(-50%, -50%);
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 18px 20px 20px;
+    box-shadow: 0 18px 55px rgba(0, 0, 0, 0.28);
+    box-sizing: border-box;
+    overflow-y: auto;
+}
+
+.tsrb-profile-modal-content {
+    max-width: 720px;
+}
+
+.tsrb-account-modal-close {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    border: none;
+    background: transparent;
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+    color: #888;
+}
+
+.tsrb-account-modal-close:hover {
+    color: #111;
+}
+
+@media (max-width: 768px) {
+    .tsrb-account-modal-content {
+        max-width: 95%;
+        padding: 14px 14px 16px;
+    }
+}
+
+/* booking success modal */
+
+.tsrb-booking-success-modal-content {
+    max-width: 480px;
+    text-align: center;
+}
+
+.tsrb-booking-success-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.tsrb-booking-success-message {
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+.tsrb-booking-success-id {
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.tsrb-booking-success-actions {
+    margin-top: 10px;
+}
+
+.tsrb-booking-success-actions .tsrb-btn {
+    min-width: 140px;
+}
+
+/* ========== GENERIC SMALL MODALS (RESCHEDULE, CANCEL REQUEST, BOOKING POLICY) ========== */
+
+/* Wrapper & backdrop */
+.tsrb-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: none;
+}
+
+.tsrb-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+}
+
+/* Dialog container */
+.tsrb-modal-dialog {
+    position: relative;
+    margin: 60px auto;
+    background: #ffffff;
+    border-radius: 8px;
+    max-width: 520px;
+    width: 100%;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+/* Header: title + close button */
+.tsrb-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    border-bottom: 1px solid #eee;
+}
+
+.tsrb-modal-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+/* Close button (X) */
+.tsrb-modal-close {
+    border: none;
+    background: transparent;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    color: #888;
+    padding: 0;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.tsrb-modal-close:hover {
+    color: #333;
+}
+
+/* Body */
+.tsrb-modal-body {
+    padding: 16px 20px 18px;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.tsrb-modal-booking-info {
+    margin: 0 0 8px;
+}
+
+.tsrb-modal-cancel-booking-summary {
+    font-weight: 500;
+}
+
+.tsrb-modal-cancel-policy-text {
+    margin: 0 0 14px;
+    color: #555;
+}
+
+/* Form field inside small modal */
+.tsrb-modal-field {
+    margin-bottom: 12px;
+}
+
+.tsrb-modal-field label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 6px;
+}
+
+.tsrb-modal-field textarea,
+.tsrb-modal-field input[type="text"],
+.tsrb-modal-field .tsrb-input-textarea {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Footer buttons */
+.tsrb-modal-footer {
+    padding: 12px 20px 14px;
+    border-top: 1px solid #eee;
+    text-align: right;
+    background: #fafafa;
+}
+
+.tsrb-modal-footer .tsrb-btn + .tsrb-btn {
+    margin-left: 8px;
+}
+
+/* Messages */
+.tsrb-modal-error {
+    margin: 8px 0 0;
+    color: #b3261e;
+    font-size: 13px;
+}
+
+.tsrb-modal-success {
+    margin: 8px 0 0;
+    color: #0b8043;
+    font-size: 13px;
+}
+
+/* Responsive small modals */
+@media (max-width: 600px) {
+    .tsrb-modal-dialog {
+        margin: 40px 12px;
+        max-width: 100%;
+    }
+}
+
+/* Booking history refund note (dashboard) */
+
+.tsrb-booking-history-refund-note {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid #e5e7eb;
+    font-size: 12px;
+    color: #374151;
+}
+
+.tsrb-booking-history-refund-note ul {
+    margin: 4px 0 0;
+    padding-left: 18px;
+    list-style-type: disc;
+}
+
+.tsrb-booking-history-refund-note li {
+    margin-bottom: 2px;
+}
+
+/* ========== RULES BLOCKS IN CANCEL MODAL (BOOKING, RESCHEDULE, REFUND) ========== */
+
+.tsrb-modal-rules-block {
+    margin: 8px 0 10px;
+    font-size: 13px;
+    color: #374151;
+}
+
+.tsrb-modal-rules-block strong {
+    display: inline-block;
+    margin-bottom: 2px;
+    color: #111827;
+}
+
+.tsrb-modal-rules-block ul {
+    margin: 4px 0 0;
+    padding-left: 18px;
+    list-style-type: disc;
+}
+
+.tsrb-modal-rules-block li {
+    margin-bottom: 2px;
+    list-style-type: disc;
+}
+
+.tsrb-modal-rules-booking {
+    border-top: 1px solid #e5e7eb;
+    padding-top: 8px;
+}
+
+.tsrb-modal-rules-reschedule {
+    border-top: 1px solid #e5e7eb;
+    padding-top: 8px;
+}
+
+.tsrb-modal-rules-refund {
+    border-top: 1px solid #e5e7eb;
+    padding-top: 8px;
+}
