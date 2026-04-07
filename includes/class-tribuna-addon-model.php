@@ -114,4 +114,50 @@ class Tribuna_Addon_Model {
 
         return $wpdb->get_results( $sql );
     }
+
+    /**
+     * Ambil beberapa add-on sekaligus berdasarkan array ID.
+     *
+     * Dipakai oleh invoice handler (download_invoice_html) untuk menampilkan
+     * nama dan harga add-on per item pada baris Add-ons di invoice.
+     *
+     * Catatan: method ini sengaja mengambil add-on tanpa filter status,
+     * karena invoice harus tetap bisa menampilkan add-on yang mungkin
+     * sudah di-inactive-kan setelah booking dibuat.
+     *
+     * @param int[] $ids Array of add-on IDs. Nilai non-integer diabaikan.
+     * @return array Array of row objects, urut sesuai urutan $ids. Kosong jika $ids kosong.
+     */
+    public function get_by_ids( $ids ) {
+        global $wpdb;
+
+        if ( empty( $ids ) || ! is_array( $ids ) ) {
+            return array();
+        }
+
+        // Sanitasi: pastikan semua nilai adalah integer positif.
+        $ids = array_values(
+            array_filter(
+                array_map( 'intval', $ids ),
+                function ( $id ) {
+                    return $id > 0;
+                }
+            )
+        );
+
+        if ( empty( $ids ) ) {
+            return array();
+        }
+
+        $placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+
+        $sql = $wpdb->prepare(
+            "SELECT * FROM {$this->table} WHERE id IN ({$placeholders}) ORDER BY id ASC", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $ids
+        );
+
+        $rows = $wpdb->get_results( $sql ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+
+        return is_array( $rows ) ? $rows : array();
+    }
 }

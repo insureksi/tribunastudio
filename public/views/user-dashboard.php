@@ -7,16 +7,16 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Frontend User Booking Dashboard
  *
  * Variabel yang tersedia:
- * - $upcoming               : array booking aktif/mendatang.
- * - $history                : array booking riwayat.
- * - $studio_model           : instance Tribuna_Studio_Model (dari AJAX).
+ * - $upcoming                  : array booking aktif/mendatang.
+ * - $history                   : array booking riwayat.
+ * - $studio_model              : instance Tribuna_Studio_Model (dari AJAX).
  * - $member_reschedule_enabled : bool, apakah member boleh reschedule sendiri.
- * - $payment_window_seconds : int, durasi batas waktu pembayaran (detik, 0 = tidak ada batas).
- * - $server_now             : int, timestamp server sekarang (Unix).
+ * - $payment_window_seconds    : int, durasi batas waktu pembayaran (detik, 0 = tidak ada batas).
+ * - $server_now                : int, timestamp server sekarang (Unix).
  *
  * Tambahan (opsional, dari controller):
- * - $member_cancel_enabled  : bool, apakah member boleh request cancel.
- * - $cancel_policy_map      : array[id_booking => array hasil evaluasi policy].
+ * - $member_cancel_enabled     : bool, apakah member boleh request cancel.
+ * - $cancel_policy_map         : array[id_booking => array hasil evaluasi policy].
  */
 
 /** @var array $upcoming */
@@ -28,8 +28,13 @@ if ( ! isset( $studio_model ) || ! ( $studio_model instanceof Tribuna_Studio_Mod
 }
 
 // Fallback helper hanya jika variabel belum dikirim dari AJAX (tidak override).
-$tsrb_settings = get_option( 'tsrb_settings', array() );
-$workflow      = isset( $tsrb_settings['workflow'] ) && is_array( $tsrb_settings['workflow'] ) ? $tsrb_settings['workflow'] : array();
+if ( class_exists( 'Tribuna_Helpers' ) && method_exists( 'Tribuna_Helpers', 'get_settings' ) ) {
+	$tsrb_settings = Tribuna_Helpers::get_settings();
+} else {
+	$tsrb_settings = array();
+}
+
+$workflow = isset( $tsrb_settings['workflow'] ) && is_array( $tsrb_settings['workflow'] ) ? $tsrb_settings['workflow'] : array();
 
 // ----------------------
 // Reschedule flags.
@@ -78,6 +83,7 @@ if ( ! isset( $payment_window_seconds ) ) {
 		$payment_window_seconds = (int) $workflow['payment_deadline_hours'] * HOUR_IN_SECONDS;
 	}
 }
+
 if ( ! isset( $server_now ) ) {
 	$server_now = current_time( 'timestamp' );
 }
@@ -87,6 +93,12 @@ $cancel_policy_map = isset( $cancel_policy_map ) && is_array( $cancel_policy_map
 
 /**
  * Helper: hitung data payment timer untuk satu booking (mirror kolom Payment Timer di backend).
+ *
+ * @param object $booking
+ * @param int    $payment_window_seconds
+ * @param int    $server_now
+ *
+ * @return array
  */
 function tsrb_get_payment_timer_data_for_booking( $booking, $payment_window_seconds, $server_now ) {
 	$result = array(
@@ -199,6 +211,10 @@ function tsrb_get_cancel_policy_for_booking( $booking, $cancel_policy_map ) {
 
 /**
  * Helper: label status frontend termasuk cancel requested.
+ *
+ * @param string $status
+ *
+ * @return string
  */
 function tsrb_get_frontend_status_label( $status ) {
 	if ( 'pending_payment' === $status ) {
@@ -259,8 +275,7 @@ function tsrb_get_frontend_status_label( $status ) {
 						}
 
 						$label_status = tsrb_get_frontend_status_label( $booking->status );
-
-						$timer = tsrb_get_payment_timer_data_for_booking( $booking, $payment_window_seconds, $server_now );
+						$timer        = tsrb_get_payment_timer_data_for_booking( $booking, $payment_window_seconds, $server_now );
 
 						// Reschedule permission.
 						$show_reschedule_button = false;
@@ -272,9 +287,9 @@ function tsrb_get_frontend_status_label( $status ) {
 						}
 
 						// Cancellation permission.
-						$cancel_policy        = tsrb_get_cancel_policy_for_booking( $booking, $cancel_policy_map );
-						$can_request_cancel   = false;
-						$cancel_button_label  = __( 'Ajukan Pembatalan', 'tribuna-studio-rent-booking' );
+						$cancel_policy       = tsrb_get_cancel_policy_for_booking( $booking, $cancel_policy_map );
+						$can_request_cancel  = false;
+						$cancel_button_label = __( 'Ajukan Pembatalan', 'tribuna-studio-rent-booking' );
 
 						if ( $member_cancel_enabled && in_array( $booking->status, array( 'pending_payment', 'paid' ), true ) ) {
 							$can_request_cancel = true;
@@ -595,8 +610,7 @@ function tsrb_get_frontend_status_label( $status ) {
 						}
 
 						$label_status = tsrb_get_frontend_status_label( $booking->status );
-
-						$timer = tsrb_get_payment_timer_data_for_booking( $booking, $payment_window_seconds, $server_now );
+						$timer        = tsrb_get_payment_timer_data_for_booking( $booking, $payment_window_seconds, $server_now );
 
 						// Allow reschedule/cancel dari history hanya bila status masih aktif.
 						$show_reschedule_button_history = false;
@@ -821,38 +835,42 @@ function tsrb_get_frontend_status_label( $status ) {
 <?php endif; ?>
 
 <?php if ( $member_cancel_enabled ) : ?>
-<div class="tsrb-modal tsrb-modal-cancel-request" style="display:none">
-    <div class="tsrb-modal-backdrop"></div>
-    <div class="tsrb-modal-dialog">
-        <div class="tsrb-modal-header">
-            <h4 class="tsrb-modal-title"><?php esc_html_e( 'Ajukan Pembatalan Booking', 'tribuna-studio-rent-booking' ); ?></h4>
-            <button type="button" class="tsrb-modal-close" aria-label="<?php esc_attr_e( 'Tutup', 'tribuna-studio-rent-booking' ); ?>">&times;</button>
-        </div>
-        <div class="tsrb-modal-body">
-            <p class="tsrb-modal-booking-info">
-                <strong><?php esc_html_e( 'Booking', 'tribuna-studio-rent-booking' ); ?>:</strong>
-                <span class="tsrb-modal-cancel-booking-summary"></span>
-            </p>
+	<div class="tsrb-modal tsrb-modal-cancel-request" style="display:none">
+		<div class="tsrb-modal-backdrop"></div>
+		<div class="tsrb-modal-dialog">
+			<div class="tsrb-modal-header">
+				<h4 class="tsrb-modal-title">
+					<?php esc_html_e( 'Ajukan Pembatalan Booking', 'tribuna-studio-rent-booking' ); ?>
+				</h4>
+				<button type="button" class="tsrb-modal-close" aria-label="<?php esc_attr_e( 'Tutup', 'tribuna-studio-rent-booking' ); ?>">&times;</button>
+			</div>
+			<div class="tsrb-modal-body">
+				<p class="tsrb-modal-booking-info">
+					<strong><?php esc_html_e( 'Booking', 'tribuna-studio-rent-booking' ); ?>:</strong>
+					<span class="tsrb-modal-cancel-booking-summary"></span>
+				</p>
 
-            <p class="tsrb-modal-cancel-policy-text">
-                <?php esc_html_e( 'Mohon cek kembali estimasi refund di tabel sebelum mengirim pengajuan. Admin akan memproses sesuai kebijakan yang berlaku.', 'tribuna-studio-rent-booking' ); ?>
-            </p>
+				<p class="tsrb-modal-cancel-policy-text">
+					<?php esc_html_e( 'Mohon cek kembali estimasi refund di tabel sebelum mengirim pengajuan. Admin akan memproses sesuai kebijakan yang berlaku.', 'tribuna-studio-rent-booking' ); ?>
+				</p>
 
-            <div class="tsrb-modal-field">
-                <label for="tsrb-cancel-request-note"><?php esc_html_e( 'Alasan pembatalan (opsional)', 'tribuna-studio-rent-booking' ); ?></label>
-                <textarea id="tsrb-cancel-request-note" class="tsrb-input tsrb-input-textarea" rows="3"></textarea>
-            </div>
-            <p class="tsrb-modal-error tsrb-modal-cancel-error" style="display:none"></p>
-            <p class="tsrb-modal-success tsrb-modal-cancel-success" style="display:none"></p>
-        </div>
-        <div class="tsrb-modal-footer">
-            <button type="button" class="tsrb-btn tsrb-btn-secondary tsrb-modal-cancel">
-                <?php esc_html_e( 'Tutup', 'tribuna-studio-rent-booking' ); ?>
-            </button>
-            <button type="button" class="tsrb-btn tsrb-btn-primary tsrb-modal-submit-cancel-request">
-                <?php esc_html_e( 'Kirim Pengajuan Pembatalan', 'tribuna-studio-rent-booking' ); ?>
-            </button>
-        </div>
-    </div>
-</div>
+				<div class="tsrb-modal-field">
+					<label for="tsrb-cancel-request-note">
+						<?php esc_html_e( 'Alasan pembatalan (opsional)', 'tribuna-studio-rent-booking' ); ?>
+					</label>
+					<textarea id="tsrb-cancel-request-note" class="tsrb-input tsrb-input-textarea" rows="3"></textarea>
+				</div>
+				<p class="tsrb-modal-error tsrb-modal-cancel-error" style="display:none"></p>
+				<p class="tsrb-modal-success tsrb-modal-cancel-success" style="display:none"></p>
+			</div>
+			<div class="tsrb-modal-footer">
+				<button type="button" class="tsrb-btn tsrb-btn-secondary tsrb-modal-cancel">
+					<?php esc_html_e( 'Tutup', 'tribuna-studio-rent-booking' ); ?>
+				</button>
+				<button type="button" class="tsrb-btn tsrb-btn-primary tsrb-modal-submit-cancel-request">
+					<?php esc_html_e( 'Kirim Pengajuan Pembatalan', 'tribuna-studio-rent-booking' ); ?>
+				</button>
+			</div>
+		</div>
+	</div>
 <?php endif; ?>

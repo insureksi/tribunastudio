@@ -20,6 +20,7 @@ $tables = array(
     $wpdb->prefix . 'studio_coupons',
     $wpdb->prefix . 'studio_addons',
     $wpdb->prefix . 'studio_studios',
+    $wpdb->prefix . 'studio_booking_logs',
 );
 
 foreach ( $tables as $table ) {

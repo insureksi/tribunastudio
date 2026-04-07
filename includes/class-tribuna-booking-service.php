@@ -437,10 +437,12 @@ class Tribuna_Booking_Service {
 			);
 		}
 
+		// Cek bentrok hanya terhadap booking di studio yang sama.
 		if ( $this->booking_model->has_overlap(
 			$date,
 			date( 'H:i:s', $start_timestamp ),
-			date( 'H:i:s', $end_timestamp )
+			date( 'H:i:s', $end_timestamp ),
+			$studio_id
 		) ) {
 			return new WP_Error(
 				'slot_unavailable',
@@ -493,7 +495,7 @@ class Tribuna_Booking_Service {
 
 			foreach ( $selected_addons as $addon_id ) {
 				if ( isset( $addons_by_id[ $addon_id ] ) ) {
-					$addons_price += (float) $addons_by_id[ $addon_id ]->price;
+					$addons_price  += (float) $addons_by_id[ $addon_id ]->price;
 					$addon_names[] = $addons_by_id[ $addon_id ]->name;
 				}
 			}
@@ -585,6 +587,9 @@ class Tribuna_Booking_Service {
 				'duration'            => (int) $duration_hours,
 				'studio_id'           => $studio_id,
 				'addons'              => $addons_str,
+				// FIX: simpan total harga add-ons agar invoice dapat menampilkan
+				// sub-total yang akurat tanpa perlu re-query tabel studio_addons.
+				'addons_price'        => $addons_price,
 				'total_price'         => $total_price,
 				'coupon_code'         => $coupon_row ? $coupon_row->code : null,
 				'discount_amount'     => $discount_amount,
@@ -822,10 +827,9 @@ class Tribuna_Booking_Service {
 	/**
 	 * Get settings with defaults.
 	 *
-	 * Menggabungkan option baru `tsrbsettings` (hasil form Settings)
-	 * dengan option legacy `tsrb_settings` (hasil dari versi lama),
-	 * lalu di-merge dengan default sehingga perubahan di tab Workflow
-	 * termasuk flag `prevent_new_if_pending_payment` terbaca dengan benar.
+	 * Sekarang seluruh sumber settings disatukan di helper:
+	 *   Tribuna_Helpers::get_settings()
+	 * sehingga tidak ada lagi duplikasi option key di sini.
 	 *
 	 * @return array
 	 */
@@ -834,33 +838,7 @@ class Tribuna_Booking_Service {
 			return $this->settings;
 		}
 
-		$defaults = array(
-			'hourly_price'        => 75000,
-			'currency'            => 'IDR',
-			'admin_email'         => get_option( 'admin_email' ),
-			'payment_qr_image_id' => 0,
-			'timezone'            => 'Asia/Jakarta',
-			'operating_hours'     => array(),
-			'blocked_dates'       => array(),
-			'emails'              => array(),
-			'workflow'            => array(),
-			'integrations'        => array(),
-		);
-
-		// Option baru (utama) dan option lama (legacy).
-		$new_settings = get_option( 'tsrbsettings', array() );
-		if ( ! is_array( $new_settings ) ) {
-			$new_settings = array();
-		}
-
-		$legacy_settings = get_option( 'tsrb_settings', array() );
-		if ( ! is_array( $legacy_settings ) ) {
-			$legacy_settings = array();
-		}
-
-		// tsrbsettings override tsrb_settings, lalu merge dengan defaults.
-		$merged          = wp_parse_args( $new_settings, $legacy_settings );
-		$this->settings = wp_parse_args( $merged, $defaults );
+		$this->settings = Tribuna_Helpers::get_settings();
 
 		return $this->settings;
 	}

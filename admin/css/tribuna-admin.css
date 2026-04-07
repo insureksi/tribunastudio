@@ -351,24 +351,65 @@
     background-color: #e7f7e7;
 }
 
+.tsrb-bookings-table tr.tsrb-status-cancel-requested {
+    background-color: #ffe9d6;
+}
+
 .tsrb-bookings-table tr.tsrb-status-cancelled {
     background-color: #fdeaea;
 }
 
-/* Status cell – 2 baris: select di atas, Save di bawah */
-.tsrb-status-cell {
-    white-space: nowrap;
+/* Hover/focus */
+.tsrb-bookings-table tr.tsrb-status-pending:hover,
+.tsrb-bookings-table tr.tsrb-status-pending:focus-within {
+    background-color: #ffeccc;
 }
 
+.tsrb-bookings-table tr.tsrb-status-paid:hover,
+.tsrb-bookings-table tr.tsrb-status-paid:focus-within {
+    background-color: #d4f0d4;
+}
+
+.tsrb-bookings-table tr.tsrb-status-cancel-requested:hover,
+.tsrb-bookings-table tr.tsrb-status-cancel-requested:focus-within {
+    background-color: #ffd8b8;
+}
+
+.tsrb-bookings-table tr.tsrb-status-cancelled:hover,
+.tsrb-bookings-table tr.tsrb-status-cancelled:focus-within {
+    background-color: #f9d2d2;
+}
+
+/* Optional: badge status */
+.tsrb-badge-status-cancel-requested {
+    background-color: #ffe9d6;
+    color: #8a4b16;
+}
+
+/* Status cell – 2 baris: select di atas, Save di bawah */
+.tsrb-status-cell {
+    white-space: normal;
+}
+
+/* Wrapper select status – akan diatur lebarnya supaya pas dropdown */
 .tsrb-booking-status-inline-wrapper {
     display: block;
     margin-bottom: 2px;
+    max-width: 180px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.tsrb-booking-status-inline-wrapper select.tsrb-booking-status-select {
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .tsrb-booking-status-actions {
     display: flex;
     align-items: center;
     gap: 4px;
+    justify-content: center;
 }
 
 .tsrb-inline-status-msg {
@@ -395,7 +436,7 @@
     color: #555;
 }
 
-/* Generic badge variants for status/channel/labels */
+/* Generic badge variants */
 .tsrb-badge-status {
     background-color: #f0f0f0;
     color: #333;
@@ -404,18 +445,23 @@
 }
 
 .tsrb-badge-status-pending {
-    background-color: #fffbdd;
+    background-color: #fff8e5; 
     color: #8a6d00;
 }
 
 .tsrb-badge-status-paid {
-    background-color: #e8f9e8;
+    background-color: #e7f7e7; 
     color: #1e7b1e;
 }
 
 .tsrb-badge-status-cancelled {
-    background-color: #fdeaea;
+    background-color: #fdeaea; 
     color: #a33a3a;
+}
+
+.tsrb-badge-status-cancel-requested {
+    background-color: #ffe9d6; 
+    color: #8a4b16;
 }
 
 .tsrb-badge-channel {
@@ -429,7 +475,7 @@
     margin-top: 20px;
 }
 
-/* Inline stats bar (overview di atas tabel) */
+/* Inline stats bar */
 .tsrb-bookings-stats {
     display: flex;
     flex-wrap: wrap;
@@ -533,6 +579,7 @@
 .tsrb-bookings-table {
     width: 100%;
     border-collapse: collapse;
+    min-width: 900px;
 }
 
 .tsrb-bookings-table th,
@@ -545,7 +592,15 @@
     vertical-align: middle;
 }
 
-/* Header kolom: rata tengah, kecuali checkbox & Customer */
+/* Utility alignment classes */
+.tsrb-center {
+    text-align: center !important;
+}
+.tsrb-center-header {
+    text-align: center;
+}
+
+/* Header kolom */
 .tsrb-bookings-table thead th {
     background: #f7f7f7;
     font-weight: 600;
@@ -553,12 +608,28 @@
     white-space: nowrap;
 }
 
-.tsrb-bookings-table thead th.tsrb-col-checkbox,
-.tsrb-bookings-table thead th.tsrb-col-customer {
+/* Checkbox header & cell benar-benar center */
+.tsrb-bookings-table thead .tsrb-col-checkbox,
+.tsrb-bookings-table tbody .tsrb-col-checkbox {
+    width: 40px;
+    text-align: center !important;
+    vertical-align: middle;
+}
+.tsrb-bookings-table thead .tsrb-col-checkbox input,
+.tsrb-bookings-table tbody .tsrb-col-checkbox input {
+    margin: 0 auto;
+    display: block;
+}
+
+/* Header Customer rata tengah, isi tetap kiri */
+.tsrb-bookings-table thead .tsrb-col-customer {
+    text-align: center;
+}
+.tsrb-bookings-table td.tsrb-col-customer {
     text-align: left;
 }
 
-/* Isi rata tengah untuk kolom utama */
+/* Isi rata tengah kolom utama lain */
 .tsrb-bookings-table td.tsrb-col-id,
 .tsrb-bookings-table td.tsrb-col-studio,
 .tsrb-bookings-table td.tsrb-col-date,
@@ -571,20 +642,62 @@
     text-align: center;
 }
 
-/* Status kolom: default center di desktop */
-.tsrb-bookings-table td.tsrb-col-status {
+/* Add-ons column */
+.tsrb-bookings-table th.tsrb-col-addons {
     text-align: center;
 }
+.tsrb-bookings-table td.tsrb-col-addons {
+    text-align: center;
+    font-size: 12px;
+}
+.tsrb-addons-label {
+    display: inline-block;
+}
+.tsrb-addons-empty {
+    color: #888;
+    font-style: italic;
+}
 
-/* Status & Created – min-width untuk desktop SAJA */
-.tsrb-bookings-table th:nth-child(10),
-.tsrb-bookings-table td:nth-child(10),
-.tsrb-bookings-table th:nth-child(11),
-.tsrb-bookings-table td:nth-child(11) {
+/* Status kolom */
+.tsrb-bookings-table td.tsrb-col-status {
+    text-align: center;
+    padding-left: 5px;
+    padding-right: 5px;
+}
+.tsrb-status-header {
+    padding-left: 5px;
+    padding-right: 5px;
+}
+
+/* Status & Created – min-width (desktop) */
+.tsrb-bookings-table th.tsrb-col-status,
+.tsrb-bookings-table td.tsrb-col-status {
+    min-width: 180px;
+}
+.tsrb-bookings-table th.tsrb-col-created,
+.tsrb-bookings-table td.tsrb-col-created {
     min-width: 120px;
 }
 
-/* Table wrapper for horizontal scroll on small screens */
+/* Payment timer header & wrapper (batasi lebar + padding 5px) */
+.tsrb-bookings-table th.tsrb-col-timer {
+    text-align: center;
+    padding-left: 5px;
+    padding-right: 5px;
+    white-space: nowrap;
+}
+.tsrb-payment-timer {
+    text-align: center;
+}
+.tsrb-timer-wrapper {
+    display: inline-block;
+    padding-left: 5px;
+    padding-right: 5px;
+    max-width: 160px;
+    box-sizing: border-box;
+}
+
+/* Table wrapper for horizontal scroll (desktop) */
 .tsrb-admin-table-wrap {
     width: 100%;
     overflow-x: auto;
@@ -625,18 +738,29 @@
     color: #ccc;
 }
 
-/* Actions column – rapi dan tidak terlalu lebar */
+/* Actions column – tombol center, wrapper dengan padding 5px */
 .tsrb-actions-column {
     white-space: normal;
-    text-align: right;
+    text-align: center;
+}
+.tsrb-actions-inner {
+    display: inline-block;
+    padding-left: 5px;
+    padding-right: 5px;
+    max-width: 220px;
+    box-sizing: border-box;
+}
+.tsrb-actions-wrapper {
+    display: inline-flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px;
 }
 
-.tsrb-actions-column .button {
-    display: block;
-    width: 100%;
-    max-width: 120px;
+.tsrb-actions-wrapper .button {
+    display: inline-block;
+    width: auto;
     margin: 2px 0;
-    margin-left: auto;
 }
 
 /* PAYMENT TIMER column */
@@ -713,7 +837,7 @@
     margin-bottom: 10px;
 }
 
-/* Toolbar atas: filter di kiri, search+export di kanan */
+/* Toolbar atas */
 .tsrb-members-filter-form .tsrb-members-toolbar {
     display: flex;
     flex-wrap: nowrap;
@@ -760,7 +884,7 @@
     white-space: nowrap;
 }
 
-/* Table wrapper for horizontal scroll */
+/* Table wrapper */
 .tsrb-members-table-wrap {
     width: 100%;
     overflow-x: auto;
@@ -772,7 +896,7 @@
     vertical-align: top;
 }
 
-/* Simple tag style */
+/* Tag style */
 .tsrb-member-tags {
     display: inline-block;
     padding: 2px 6px;
@@ -782,7 +906,7 @@
     margin-bottom: 2px;
 }
 
-/* Actions: 3 tombol bertumpuk vertikal */
+/* Actions */
 .tsrb-member-actions {
     display: flex;
     flex-direction: column;
@@ -793,7 +917,7 @@
     display: inline-block;
 }
 
-/* ===== Bookings header layout + Upcoming widget (Bookings admin) ===== */
+/* ===== Bookings header layout + Upcoming widget ===== */
 
 .tsrb-bookings-header-layout {
     display: grid;
@@ -804,7 +928,7 @@
     margin-bottom: 12px;
 }
 
-/* Stats global di header bookings */
+/* Stats global */
 .tsrb-bookings-stats-global {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -816,7 +940,7 @@
     min-width: 0;
 }
 
-/* Filtered stats row setelah header */
+/* Filtered stats row */
 .tsrb-bookings-stats-filtered {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1015,15 +1139,15 @@
         text-align: center;
     }
 
-    /* MOBILE: kolom Status, Created, Timer, Actions fleksibel & tidak nabrak */
-    .tsrb-bookings-table th:nth-child(10),
-    .tsrb-bookings-table td:nth-child(10),
-    .tsrb-bookings-table th:nth-child(11),
-    .tsrb-bookings-table td:nth-child(11),
-    .tsrb-bookings-table th:nth-child(12),
-    .tsrb-bookings-table td:nth-child(12),
-    .tsrb-bookings-table th:nth-child(13),
-    .tsrb-bookings-table td:nth-child(13) {
+    /* Kolom Status, Created, Timer, Actions lebih fleksibel */
+    .tsrb-bookings-table th.tsrb-col-status,
+    .tsrb-bookings-table td.tsrb-col-status,
+    .tsrb-bookings-table th.tsrb-col-created,
+    .tsrb-bookings-table td.tsrb-col-created,
+    .tsrb-bookings-table th.tsrb-col-timer,
+    .tsrb-bookings-table td.tsrb-col-timer,
+    .tsrb-bookings-table th.tsrb-col-actions,
+    .tsrb-bookings-table td.tsrb-col-actions {
         min-width: 0;
         white-space: normal;
     }
@@ -1068,11 +1192,8 @@
         justify-content: center;
     }
 
-    .tsrb-actions-column .button {
-        width: 100%;
-        max-width: none;
-        box-sizing: border-box;
-        text-align: center;
+    .tsrb-actions-wrapper {
+        justify-content: flex-start;
     }
 
     .tsrb-bookings-header-layout {
@@ -1086,6 +1207,7 @@
     }
 }
 
+/* MOBILE: stacked card layout untuk tabel bookings */
 @media (max-width: 782px) {
     .tsrb-filter-row select,
     .tsrb-filter-row input[type="date"],
@@ -1124,5 +1246,119 @@
     .tsrb-bookings-stats-global,
     .tsrb-bookings-stats-filtered {
         grid-template-columns: minmax(0, 1fr);
+    }
+
+    /* --- Bookings table -> card --- */
+
+    /* Sembunyikan header */
+    .tsrb-bookings-table thead {
+        display: none;
+    }
+
+    .tsrb-bookings-table,
+    .tsrb-bookings-table tbody,
+    .tsrb-bookings-table tr {
+        display: block;
+        min-width: 0;
+        width: 100%;
+    }
+
+    .tsrb-bookings-table tr {
+        margin-bottom: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background: #fff;
+        overflow: hidden;
+    }
+
+    /* Checkbox di bagian atas card */
+    .tsrb-bookings-table .tsrb-col-checkbox {
+        display: block;
+        width: 100%;
+        padding: 6px 8px;
+        border-bottom: 1px solid #eee;
+        text-align: left !important;
+    }
+
+    /* Setiap sel menjadi baris */
+    .tsrb-bookings-table td {
+        display: flex;
+        width: 100%;
+        padding: 6px 8px;
+        border: 0;
+        border-top: 1px solid #f0f0f0;
+        box-sizing: border-box;
+        text-align: left !important;
+        white-space: normal !important;
+    }
+
+    /* Label di kiri, isi di kanan (pakai data-label) */
+    .tsrb-bookings-table td::before {
+        content: attr(data-label);
+        flex: 0 0 110px;
+        max-width: 40%;
+        font-weight: 600;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        color: #555;
+        margin-right: 8px;
+    }
+
+    .tsrb-bookings-table td > * {
+        flex: 1 1 auto;
+    }
+
+    /* Customer: susunan vertikal */
+    .tsrb-bookings-table td.tsrb-col-customer {
+        flex-direction: column;
+    }
+    .tsrb-bookings-table td.tsrb-col-customer::before {
+        margin-bottom: 2px;
+    }
+
+    /* Status: select & button full width */
+    .tsrb-status-cell {
+        white-space: normal;
+        flex-direction: column;
+    }
+    .tsrb-booking-status-inline-wrapper select.tsrb-booking-status-select {
+        width: 100%;
+    }
+    .tsrb-booking-status-actions {
+        flex-wrap: wrap;
+        margin-top: 4px;
+    }
+    .tsrb-booking-status-actions .button {
+        width: 100%;
+        text-align: center;
+    }
+
+    /* Timer badge full width */
+    .tsrb-payment-timer-badge {
+        width: 100%;
+        max-width: 100%;
+        justify-content: center;
+        white-space: normal;
+    }
+
+    /* Actions buttons full width */
+    .tsrb-actions-column {
+        text-align: left;
+    }
+    .tsrb-actions-inner {
+        padding-left: 8px;
+        padding-right: 8px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .tsrb-actions-wrapper {
+        justify-content: flex-start;
+        width: 100%;
+    }
+    .tsrb-actions-wrapper .button {
+        width: 100%;
+        max-width: none;
+        text-align: center;
     }
 }

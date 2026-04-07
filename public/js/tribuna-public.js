@@ -1,18 +1,20 @@
 jQuery(document).ready(function ($) {
     'use strict';
 
-    var currency         = TSRB_Public.currency || 'IDR';
-    var studiosData      = TSRB_Public.studios || {};
-    var whatsappPhone    = TSRB_Public.whatsapp_number || '';
-    var initialUser      = TSRB_Public.current_user || null;
+    var currency      = TSRB_Public.currency || 'IDR';
+    var studiosData   = TSRB_Public.studios || {};
+    var whatsappPhone = TSRB_Public.whatsapp_number || '';
+    var initialUser   = TSRB_Public.current_user || null;
+
+    // Lead time (disinkronkan dengan workflow[min_lead_time_hours]).
     var minLeadTimeHours = parseInt(TSRB_Public.min_lead_time_hours || 0, 10);
 
-    // Booking & reschedule settings (selaras dengan dashboard).
-    var bookingMinHoursBeforeStart   = parseInt(TSRB_Public.booking_min_hours_before_start || 0, 10);
-    var maxActiveBookingsPerUser     = parseInt(TSRB_Public.max_active_bookings_per_user || 0, 10);
-    var paymentDeadlineHours         = parseInt(TSRB_Public.payment_deadline_hours || 0, 10);
-    var rescheduleCutoffHours        = parseInt(TSRB_Public.reschedule_cutoff_hours || 0, 10);
-    var rescheduleAllowPending       = !!TSRB_Public.reschedule_allow_pending;
+    // Booking & reschedule settings (disinkronkan dengan workflow).
+    var bookingMinHoursBeforeStart = parseInt(TSRB_Public.booking_min_hours_before_start || TSRB_Public.min_lead_time_hours || 0, 10);
+    var maxActiveBookingsPerUser   = parseInt(TSRB_Public.max_active_bookings_per_user || 0, 10);
+    var paymentDeadlineHours       = parseInt(TSRB_Public.payment_deadline_hours || 0, 10);
+    var rescheduleCutoffHours      = parseInt(TSRB_Public.reschedule_cutoff_hours || 0, 10);
+    var rescheduleAllowPending     = !!TSRB_Public.reschedule_allow_pending;
 
     // Cancellation & refund policy (global) dari PHP.
     var cancellationPolicy = TSRB_Public.cancellation_policy || {};
@@ -23,7 +25,7 @@ jQuery(document).ready(function ($) {
     var refundNoRefundHrs  = parseInt(cancellationPolicy.refund_no_refund_inside_hours || 0, 10);
 
     // Booking ID terakhir yang berhasil dibuat (dipakai untuk invoice & download).
-    var currentBookingId   = null;
+    var currentBookingId = null;
 
     // ================== HELPER ==================
 
@@ -162,7 +164,6 @@ jQuery(document).ready(function ($) {
                 } else {
                     $badge.text('Expired');
                 }
-
                 $badge
                     .removeClass('tsrb-payment-timer-badge--ok tsrb-payment-timer-badge--warn')
                     .addClass('tsrb-payment-timer-badge--expired');
@@ -233,6 +234,15 @@ jQuery(document).ready(function ($) {
                 { scrollTop: $wrapper.offset().top - 20 },
                 300
             );
+        }
+
+        // FIX Bug 1 & Bug 2c: Setiap kali Step 1 ditampilkan, paksa FullCalendar
+        // hitung ulang dimensinya. Ini mengatasi layout rusak akibat kalender
+        // di-render saat container tersembunyi (setelah login/register atau reset booking).
+        if (step === 1 && bookingCalendar) {
+            setTimeout(function () {
+                bookingCalendar.updateSize();
+            }, 50);
         }
 
         setTimeout(function () {
@@ -325,10 +335,29 @@ jQuery(document).ready(function ($) {
         discount:      0
     };
 
+    // FIX Bug 1 & Bug 2b & Bug 2c: Pindahkan instance kalender ke outer scope
+    // agar bisa diakses oleh goToStep() dan tsrbResetFullBookingState().
+    var bookingCalendar = null;
+
     function tsrbResetFullBookingState() {
         var $form = $('#tsrb-booking-form');
         if ($form.length && $form[0].reset) {
             $form[0].reset();
+        }
+
+        // FIX Bug 2b: Reset state internal selectedDate dan slotsCache
+        // agar sinkron dengan DOM setelah reset.
+        selectedDate = null;
+        slotsCache   = {};
+
+        // FIX Bug 2b: Bersihkan visual selection di FullCalendar.
+        // Hapus class tsrb-date-selected dari semua cell kalender,
+        // lalu panggil unselect() jika API tersedia.
+        $('.tsrb-date-selected').removeClass('tsrb-date-selected');
+        if (bookingCalendar) {
+            if (typeof bookingCalendar.unselect === 'function') {
+                bookingCalendar.unselect();
+            }
         }
 
         $('#tsrb-selected-date-text').text('-').data('value', '');
@@ -361,7 +390,6 @@ jQuery(document).ready(function ($) {
         $('#tsrb-summary-invoice').html('');
         $('#tsrb-booking-result').html('');
 
-        // reset state booking id & tombol invoice
         currentBookingId = null;
         $('#tsrb-download-invoice-wrapper').remove();
 
@@ -369,6 +397,7 @@ jQuery(document).ready(function ($) {
         $('#tsrb-coupon-code').val('');
         $('#tsrb-coupon-message').text('').css('color', '');
 
+        // goToStep(1) sudah memanggil bookingCalendar.updateSize() via fix Bug 2c.
         goToStep(1);
     }
 
@@ -377,7 +406,9 @@ jQuery(document).ready(function ($) {
             return;
         }
 
-        var calendar = new FullCalendar.Calendar($bookingCalendarEl, {
+        // FIX Bug 1 & Bug 2c: Simpan instance ke variabel outer scope bookingCalendar,
+        // bukan ke variabel lokal 'calendar' yang tidak bisa diakses dari luar fungsi ini.
+        bookingCalendar = new FullCalendar.Calendar($bookingCalendarEl, {
             initialView: 'dayGridMonth',
             height: 'auto',
             headerToolbar: {
@@ -427,7 +458,7 @@ jQuery(document).ready(function ($) {
             }
         });
 
-        calendar.render();
+        bookingCalendar.render();
     }
 
     function loadSlotsForDate(dateStr) {
@@ -648,22 +679,29 @@ jQuery(document).ready(function ($) {
             .find('.tsrb-studio-name')
             .text() || '';
 
-        var duration    = pricing.durationHours || 0;
-        var base        = pricing.basePrice || 0;
+        var duration = pricing.durationHours || 0;
+        var base     = pricing.basePrice || 0;
+
+        // FIX: Gunakan pricing.addonsPrice (state terpusat dari updatePricing())
+        // sebagai sumber kebenaran, bukan hitung ulang dari DOM.
         var addons      = [];
-        var addonsTotal = 0;
+        var addonsTotal = pricing.addonsPrice || 0;
 
         $('.tsrb-addon-item input[type="checkbox"]:checked').each(function () {
             var $wrap = $(this).closest('.tsrb-addon-item');
-            var name  = $wrap.find('.tsrb-addon-name').contents().first().text().trim();
+            var name  = $wrap.find('.tsrb-addon-name').contents().filter(function () {
+                return this.nodeType === 3;
+            }).first().text().trim();
             var price = parseFloat($(this).data('price') || 0);
             addons.push({ name: name, price: price });
-            addonsTotal += price;
         });
 
         var couponCode = $('#tsrb-coupon-code').val().trim();
         var discount   = pricing.discount || 0;
-        var total      = pricing.final || (pricing.total || 0);
+
+        // FIX: Jangan gunakan `pricing.final || pricing.total` karena jika pricing.final === 0
+        // (diskon 100%) JS akan salah fallback ke pricing.total.
+        var total = (typeof pricing.final === 'number') ? pricing.final : (pricing.total || 0);
 
         var html = '';
 
@@ -671,8 +709,7 @@ jQuery(document).ready(function ($) {
         html += '<div class="tsrb-invoice-title">Detail Booking Anda</div>';
         html += '<div class="tsrb-invoice-meta">';
         html += '<div><strong>ID Booking:</strong> <span class="tsrb-invoice-booking-id">' +
-            (currentBookingId ? currentBookingId : '-') +
-            '</span></div>';
+            (currentBookingId ? currentBookingId : '-') + '</span></div>';
         html += '<div><strong>Tanggal:</strong> ' + (date || '-') + '</div>';
         html += '</div>';
         html += '</div>';
@@ -688,17 +725,13 @@ jQuery(document).ready(function ($) {
         html += '<tbody>';
 
         html += '<tr>';
-        html += '<td class="tsrb-invoice-cell-item">';
-        html += 'Sewa Studio: ' + (studioName || '-');
-        html += '</td>';
+        html += '<td class="tsrb-invoice-cell-item">Sewa Studio: ' + (studioName || '-') + '</td>';
         html += '<td class="tsrb-invoice-cell-detail">';
         html += 'Tanggal: ' + (date || '-') + '<br>';
         html += 'Jam: ' + (start || '-') + ' - ' + (end || '-') + '<br>';
         html += 'Durasi: ' + duration + ' jam';
         html += '</td>';
-        html += '<td class="tsrb-invoice-cell-subtotal">';
-        html += formatPrice(base);
-        html += '</td>';
+        html += '<td class="tsrb-invoice-cell-subtotal">' + formatPrice(base) + '</td>';
         html += '</tr>';
 
         if (addons.length > 0) {
@@ -707,14 +740,15 @@ jQuery(document).ready(function ($) {
             html += '<td class="tsrb-invoice-cell-detail">';
             addons.forEach(function (addon, idx) {
                 html += addon.name;
+                if (addon.price > 0) {
+                    html += ' <span class="tsrb-invoice-addon-price">(' + formatPrice(addon.price) + ')</span>';
+                }
                 if (idx < addons.length - 1) {
                     html += '<br>';
                 }
             });
             html += '</td>';
-            html += '<td class="tsrb-invoice-cell-subtotal">';
-            html += formatPrice(addonsTotal);
-            html += '</td>';
+            html += '<td class="tsrb-invoice-cell-subtotal">' + formatPrice(addonsTotal) + '</td>';
             html += '</tr>';
         } else {
             html += '<tr>';
@@ -744,21 +778,17 @@ jQuery(document).ready(function ($) {
         html += '<tr class="tsrb-invoice-row-total">';
         html += '<td class="tsrb-invoice-cell-item"><strong>Total</strong></td>';
         html += '<td class="tsrb-invoice-cell-detail"></td>';
-        html += '<td class="tsrb-invoice-cell-subtotal tsrb-invoice-total-amount"><strong>' +
-            formatPrice(total) +
-            '</strong></td>';
+        html += '<td class="tsrb-invoice-cell-subtotal tsrb-invoice-total-amount"><strong>' + formatPrice(total) + '</strong></td>';
         html += '</tr>';
 
         html += '</tbody>';
         html += '</table>';
 
-        // wrapper tombol download invoice (akan diisi setelah booking sukses)
         html += '<div id="tsrb-download-invoice-wrapper" class="tsrb-download-invoice-wrapper"></div>';
 
         $('#tsrb-summary-invoice').html(html);
         $('#tsrb-final-price-text').text(formatPrice(total));
 
-        // jika booking sudah ada, tampilkan tombol download
         if (currentBookingId && TSRB_Public.invoice_url) {
             ensureDownloadInvoiceButton();
         }
@@ -832,25 +862,17 @@ jQuery(document).ready(function ($) {
     function buildBookingPolicyHtml() {
         var html = '';
 
-        // Aturan Booking
         html += '<div class="tsrb-modal-rules-block tsrb-modal-rules-booking">';
         html += '<strong>Aturan Booking</strong>';
         html += '<ul>';
 
-        html += '<li>Booking hanya dapat dibuat untuk jadwal yang masih tersedia di kalender studio.</li>';
-
-        // Lead time X jam sebelum mulai.
         var leadHours = bookingMinHoursBeforeStart || minLeadTimeHours;
         if (leadHours > 0) {
             html += '<li>Booking harus dibuat minimal ' + leadHours + ' jam sebelum jam mulai.</li>';
         }
-
-        // Maksimal booking aktif.
         if (maxActiveBookingsPerUser > 0) {
             html += '<li>Setiap member dapat memiliki maksimal ' + maxActiveBookingsPerUser + ' booking aktif sekaligus.</li>';
         }
-
-        // Batas waktu pembayaran.
         if (paymentDeadlineHours > 0) {
             html += '<li>Jika pembayaran tidak diterima dalam waktu ' + paymentDeadlineHours +
                 ' jam sejak booking dibuat, booking akan dibatalkan otomatis.</li>';
@@ -859,7 +881,6 @@ jQuery(document).ready(function ($) {
         html += '</ul>';
         html += '</div>';
 
-        // Aturan Reschedule
         html += '<div class="tsrb-modal-rules-block tsrb-modal-rules-reschedule">';
         html += '<strong>Aturan Reschedule</strong>';
         html += '<ul>';
@@ -869,7 +890,6 @@ jQuery(document).ready(function ($) {
             html += '<li>Permohonan reschedule dapat diajukan maksimal ' +
                 rescheduleCutoffHours + ' jam sebelum jam mulai booking awal.</li>';
         }
-
         if (rescheduleAllowPending) {
             html += '<li>Reschedule hanya berlaku untuk booking dengan status Menunggu Pembayaran dan Sudah Dibayar.</li>';
         } else {
@@ -879,7 +899,6 @@ jQuery(document).ready(function ($) {
         html += '</ul>';
         html += '</div>';
 
-        // Aturan Pembatalan & Refund
         html += '<div class="tsrb-modal-rules-block tsrb-modal-rules-refund">';
         html += '<strong>Aturan Pembatalan & Refund</strong>';
         html += '<ul>';
@@ -889,21 +908,16 @@ jQuery(document).ready(function ($) {
         } else {
             html += '<li>Pengajuan pembatalan hanya dapat dilakukan dengan menghubungi admin.</li>';
         }
-
         if (refundFullHours > 0) {
-            html += '<li>Refund penuh diberikan jika pembatalan dilakukan minimal ' +
-                refundFullHours + ' jam sebelum jam mulai.</li>';
+            html += '<li>Refund penuh diberikan jika pembatalan dilakukan minimal ' + refundFullHours + ' jam sebelum jam mulai.</li>';
         }
-
         if (refundPartialHours > 0 && refundPartialPct > 0) {
             html += '<li>Refund parsial sebesar ' + refundPartialPct +
                 '% diberikan jika pembatalan dilakukan sebelum ' +
                 refundPartialHours + ' jam dari jam mulai di hari H.</li>';
         }
-
         if (refundNoRefundHrs > 0) {
-            html += '<li>Tidak ada refund jika pembatalan dilakukan kurang dari ' +
-                refundNoRefundHrs + ' jam sebelum jam mulai.</li>';
+            html += '<li>Tidak ada refund jika pembatalan dilakukan kurang dari ' + refundNoRefundHrs + ' jam sebelum jam mulai.</li>';
         }
 
         html += '</ul>';
@@ -920,13 +934,11 @@ jQuery(document).ready(function ($) {
             return;
         }
 
-        // Isi ulang konten body sesuai setting backend
         var $body = $modal.find('.tsrb-modal-booking-policy-body, .tsrb-booking-policy-body');
         if ($body.length) {
             $body.html(buildBookingPolicyHtml());
         }
 
-        // Bersihkan pesan error yang mungkin pernah tertinggal
         var $errorBox = $modal.find('.tsrb-booking-policy-error');
         if ($errorBox.length) {
             $errorBox.hide().text('');
@@ -982,36 +994,28 @@ jQuery(document).ready(function ($) {
             dataType: 'json'
         }).done(function (response) {
             $('#tsrb-submit-booking').prop('disabled', false);
+
             if (!response.success) {
                 $('#tsrb-booking-result').html(
                     '<p class="tsrb-error">' +
-                        (response.data && response.data.message
-                            ? response.data.message
-                            : 'Booking gagal dikirim.') +
+                        (response.data && response.data.message ? response.data.message : 'Booking gagal dikirim.') +
                     '</p>'
                 );
-
                 var $wrapper = $('.tsrb-booking-wrapper');
                 if ($wrapper.length) {
-                    $('html, body').animate(
-                        { scrollTop: $wrapper.offset().top - 20 },
-                        300
-                    );
+                    $('html, body').animate({ scrollTop: $wrapper.offset().top - 20 }, 300);
                 }
                 return;
             }
 
             var data = response.data;
 
-            // simpan booking id ke state
             currentBookingId = data.booking_id || null;
 
-            // update ID Booking di invoice header jika sudah ada
             if (currentBookingId) {
                 $('.tsrb-invoice-booking-id').text(currentBookingId);
             }
 
-            // pastikan tombol download invoice muncul
             if (currentBookingId && TSRB_Public.invoice_url) {
                 ensureDownloadInvoiceButton();
             }
@@ -1025,8 +1029,7 @@ jQuery(document).ready(function ($) {
 
             var modalHtml  = '<div class="tsrb-booking-success-title">Booking Berhasil</div>';
             modalHtml     += '<div class="tsrb-booking-success-message">' +
-                (data.message || 'Booking submitted. Please wait for admin confirmation.') +
-                '</div>';
+                (data.message || 'Booking submitted. Please wait for admin confirmation.') + '</div>';
             modalHtml     += '<div class="tsrb-booking-success-id">ID Booking: ' + data.booking_id + '</div>';
             if (data.google_cal) {
                 modalHtml += '<p><a href="' + data.google_cal + '" target="_blank" rel="noopener noreferrer">Tambahkan ke Google Calendar</a></p>';
@@ -1040,18 +1043,40 @@ jQuery(document).ready(function ($) {
 
             $(document)
                 .off('click.tsrbBookingSuccess')
-                .on('click.tsrbBookingSuccess', '.tsrb-booking-success-ok, #tsrb-booking-success-modal .tsrb-account-modal-close, #tsrb-booking-success-modal .tsrb-account-modal-overlay', function () {
-                    $('#tsrb-booking-success-modal').hide();
-                });
+                .on('click.tsrbBookingSuccess',
+                    '.tsrb-booking-success-ok,' +
+                    ' #tsrb-booking-success-modal .tsrb-account-modal-close,' +
+                    ' #tsrb-booking-success-modal .tsrb-account-modal-overlay',
+                    function () {
+                        $('#tsrb-booking-success-modal').hide();
+                    }
+                );
 
             var $backBtn = $('.tsrb-step3-back');
             if ($backBtn.length) {
                 $backBtn.text('Booking tanggal lain');
                 $backBtn.data('prev-step', 1);
 
+                // FIX Bug 2a: Saat user klik "Booking tanggal lain", refresh nonce
+                // terlebih dahulu sebelum reset state. Ini memastikan AJAX call
+                // berikutnya (tsrb_get_availability) menggunakan nonce yang segar
+                // dan tidak gagal karena nonce yang sudah dipakai submit booking.
                 $backBtn.off('click.tsrbBackAfterSuccess').on('click.tsrbBackAfterSuccess', function (ev) {
                     ev.preventDefault();
-                    tsrbResetFullBookingState();
+
+                    $.ajax({
+                        url: TSRB_Public.ajax_url,
+                        method: 'POST',
+                        dataType: 'json',
+                        data: { action: 'tsrb_refresh_public_nonce' }
+                    }).always(function (res) {
+                        // Perbarui nonce jika refresh berhasil; lanjutkan reset
+                        // bahkan jika refresh gagal agar UX tidak terhenti.
+                        if (res && res.success && res.data && res.data.nonce) {
+                            TSRB_Public.nonce = res.data.nonce;
+                        }
+                        tsrbResetFullBookingState();
+                    });
                 });
             }
         }).fail(function (xhr) {
@@ -1066,10 +1091,7 @@ jQuery(document).ready(function ($) {
 
             var $wrapper = $('.tsrb-booking-wrapper');
             if ($wrapper.length) {
-                $('html, body').animate(
-                    { scrollTop: $wrapper.offset().top - 20 },
-                    300
-                );
+                $('html, body').animate({ scrollTop: $wrapper.offset().top - 20 }, 300);
             }
         });
     });
@@ -1122,15 +1144,10 @@ jQuery(document).ready(function ($) {
                                 if (response.success) {
                                     var status     = response.data.status;
                                     var colorClass = '';
-                                    if (status === 'available') {
-                                        colorClass = 'fc-available';
-                                    } else if (status === 'partial') {
-                                        colorClass = 'fc-partial';
-                                    } else if (status === 'full') {
-                                        colorClass = 'fc-full';
-                                    } else if (status === 'closed') {
-                                        colorClass = 'fc-closed';
-                                    }
+                                    if (status === 'available')      { colorClass = 'fc-available'; }
+                                    else if (status === 'partial')   { colorClass = 'fc-partial'; }
+                                    else if (status === 'full')      { colorClass = 'fc-full'; }
+                                    else if (status === 'closed')    { colorClass = 'fc-closed'; }
 
                                     if (colorClass) {
                                         events.push({
@@ -1259,9 +1276,7 @@ jQuery(document).ready(function ($) {
                 );
                 return;
             }
-
             $('#tsrb-history-modal-body').html(response.data && response.data.html ? response.data.html : '');
-
             initFrontendPaymentTimers();
         }).fail(function () {
             $('#tsrb-history-modal-body').html('<p class="tsrb-error">Gagal memuat riwayat booking.</p>');
@@ -1289,7 +1304,6 @@ jQuery(document).ready(function ($) {
                 );
                 return;
             }
-
             $('#tsrb-profile-modal-body').html(response.data && response.data.html ? response.data.html : '');
         }).fail(function () {
             $('#tsrb-profile-modal-body').html('<p class="tsrb-error">Gagal memuat profil.</p>');
@@ -1316,10 +1330,14 @@ jQuery(document).ready(function ($) {
         openProfileModal();
     });
 
-    $(document).on('click', '#tsrb-history-modal .tsrb-account-modal-close, #tsrb-history-modal .tsrb-account-modal-overlay,' +
-        '#tsrb-profile-modal .tsrb-account-modal-close, #tsrb-profile-modal .tsrb-account-modal-overlay', function () {
-        closeAccountModals();
-    });
+    $(document).on(
+        'click',
+        '#tsrb-history-modal .tsrb-account-modal-close, #tsrb-history-modal .tsrb-account-modal-overlay,' +
+        '#tsrb-profile-modal .tsrb-account-modal-close, #tsrb-profile-modal .tsrb-account-modal-overlay',
+        function () {
+            closeAccountModals();
+        }
+    );
 
     // ================== PROFILE & PASSWORD AJAX ==================
 
@@ -1424,35 +1442,21 @@ jQuery(document).ready(function ($) {
                         'Data di bawah ini akan digunakan untuk booking Anda. Anda bisa mengubahnya terlebih dahulu jika diperlukan.' +
                     '</p>' +
                     '<div class="tsrb-data-form">' +
-                        '<p>' +
-                            '<label for="tsrb-full-name">Nama Lengkap *</label><br>' +
-                            '<input type="text" id="tsrb-full-name" name="full_name" required>' +
-                        '</p>' +
-                        '<p>' +
-                            '<label for="tsrb-email">Email *</label><br>' +
-                            '<input type="email" id="tsrb-email" name="email" required>' +
-                        '</p>' +
-                        '<p>' +
-                            '<label for="tsrb-phone">No. HP / WhatsApp *</label><br>' +
-                            '<input type="text" id="tsrb-phone" name="phone" required>' +
-                        '</p>' +
-                        '<p>' +
-                            '<label for="tsrb-notes">Catatan Tambahan (opsional)</label><br>' +
-                            '<textarea id="tsrb-notes" name="notes" rows="4"></textarea>' +
-                        '</p>' +
+                        '<p><label for="tsrb-full-name">Nama Lengkap *</label><br>' +
+                        '<input type="text" id="tsrb-full-name" name="full_name" required></p>' +
+                        '<p><label for="tsrb-email">Email *</label><br>' +
+                        '<input type="email" id="tsrb-email" name="email" required></p>' +
+                        '<p><label for="tsrb-phone">No. HP / WhatsApp *</label><br>' +
+                        '<input type="text" id="tsrb-phone" name="phone" required></p>' +
+                        '<p><label for="tsrb-notes">Catatan Tambahan (opsional)</label><br>' +
+                        '<textarea id="tsrb-notes" name="notes" rows="4"></textarea></p>' +
                     '</div>';
                 $panel2.find('h3').first().after(formHtml);
             }
 
-            if (user.display_name) {
-                $('#tsrb-full-name').val(user.display_name);
-            }
-            if (user.email) {
-                $('#tsrb-email').val(user.email);
-            }
-            if (user.phone) {
-                $('#tsrb-phone').val(user.phone);
-            }
+            if (user.display_name) { $('#tsrb-full-name').val(user.display_name); }
+            if (user.email)        { $('#tsrb-email').val(user.email); }
+            if (user.phone)        { $('#tsrb-phone').val(user.phone); }
 
             var $actions = $panel2.find('.tsrb-step-actions');
             if ($actions.length && $actions.find('.tsrb-next-step').length === 0) {
@@ -1493,27 +1497,9 @@ jQuery(document).ready(function ($) {
                 $right = $('<div>', { class: 'tsrb-account-status-right' }).appendTo($status);
             }
             $right.empty()
-                .append(
-                    $('<button>', {
-                        type: 'button',
-                        class: 'tsrb-account-status-link tsrb-account-history-trigger',
-                        text: 'Riwayat Booking'
-                    })
-                )
-                .append(
-                    $('<button>', {
-                        type: 'button',
-                        class: 'tsrb-account-status-link tsrb-account-profile-trigger',
-                        text: 'Profil Saya'
-                    })
-                )
-                .append(
-                    $('<button>', {
-                        type: 'button',
-                        class: 'tsrb-account-status-link tsrb-account-logout-trigger',
-                        text: 'Logout'
-                    })
-                );
+                .append($('<button>', { type: 'button', class: 'tsrb-account-status-link tsrb-account-history-trigger', text: 'Riwayat Booking' }))
+                .append($('<button>', { type: 'button', class: 'tsrb-account-status-link tsrb-account-profile-trigger', text: 'Profil Saya' }))
+                .append($('<button>', { type: 'button', class: 'tsrb-account-status-link tsrb-account-logout-trigger', text: 'Logout' }));
 
             $(document).off('click.tsrbLogout', '.tsrb-account-logout-trigger');
             $(document).on('click.tsrbLogout', '.tsrb-account-logout-trigger', function () {
@@ -1527,13 +1513,12 @@ jQuery(document).ready(function ($) {
 
         goToStep(currentStep);
 
+        // Refresh nonce setelah login/register, lalu reload slot jika tanggal sudah dipilih.
         $.ajax({
             url: TSRB_Public.ajax_url,
             method: 'POST',
             dataType: 'json',
-            data: {
-                action: 'tsrb_refresh_public_nonce'
-            }
+            data: { action: 'tsrb_refresh_public_nonce' }
         }).done(function (res) {
             if (res && res.success && res.data && res.data.nonce) {
                 TSRB_Public.nonce = res.data.nonce;
@@ -1570,23 +1555,17 @@ jQuery(document).ready(function ($) {
         $('#tsrb-register-message').css('color', '').text('Mendaftarkan akun...');
 
         $.ajax({
-            url:  TSRB_Public.ajax_url,
-            type: 'POST',
+            url:      TSRB_Public.ajax_url,
+            type:     'POST',
             dataType: 'json',
-            data: payload
-        })
-        .done(function (response) {
+            data:     payload
+        }).done(function (response) {
             if (!response || typeof response.success === 'undefined') {
-                $('#tsrb-register-message')
-                    .css('color', 'red')
-                    .text('Terjadi kesalahan. Silakan coba lagi.');
+                $('#tsrb-register-message').css('color', 'red').text('Terjadi kesalahan. Silakan coba lagi.');
                 return;
             }
-
             if (!response.success) {
-                var msg = (response.data && response.data.message)
-                    ? response.data.message
-                    : 'Pendaftaran gagal.';
+                var msg = (response.data && response.data.message) ? response.data.message : 'Pendaftaran gagal.';
                 $('#tsrb-register-message').css('color', 'red').text(msg);
                 return;
             }
@@ -1603,8 +1582,7 @@ jQuery(document).ready(function ($) {
             setTimeout(function () {
                 closeAuthModal();
             }, 600);
-        })
-        .fail(function (xhr) {
+        }).fail(function (xhr) {
             var msg = 'Terjadi kesalahan koneksi.';
             if (xhr && xhr.responseJSON && typeof xhr.responseJSON === 'object') {
                 if (xhr.responseJSON.data && xhr.responseJSON.data.message) {
@@ -1623,20 +1601,20 @@ jQuery(document).ready(function ($) {
         e.preventDefault();
 
         var data = {
-            action: 'tsrb_login_user',
-            nonce: TSRB_Public.nonce,
-            log: $('#tsrb-login-username').val(),
-            pwd: $('#tsrb-login-password').val(),
+            action:      'tsrb_login_user',
+            nonce:       TSRB_Public.nonce,
+            log:         $('#tsrb-login-username').val(),
+            pwd:         $('#tsrb-login-password').val(),
             remember_me: $('#tsrb-login-remember').is(':checked') ? 1 : 0
         };
 
         $('#tsrb-login-message').css('color', '').text('Memproses login...');
 
         $.ajax({
-            url: TSRB_Public.ajax_url,
-            type: 'POST',
+            url:      TSRB_Public.ajax_url,
+            type:     'POST',
             dataType: 'json',
-            data: data
+            data:     data
         }).done(function (response) {
             if (!response || typeof response.success === 'undefined' || !response.success) {
                 var msg = 'Login gagal.';
@@ -1659,14 +1637,9 @@ jQuery(document).ready(function ($) {
             setTimeout(function () {
                 var $wrapper = $('.tsrb-booking-wrapper');
                 if ($wrapper.length) {
-                    $('html, body').animate(
-                        { scrollTop: $wrapper.offset().top - 20 },
-                        300
-                    );
+                    $('html, body').animate({ scrollTop: $wrapper.offset().top - 20 }, 300);
                     var $name = $('#tsrb-full-name');
-                    if ($name.length) {
-                        $name.trigger('focus');
-                    }
+                    if ($name.length) { $name.trigger('focus'); }
                 }
             }, 300);
         }).fail(function (xhr) {
@@ -1686,16 +1659,14 @@ jQuery(document).ready(function ($) {
 
     $(document).on('click', '.tsrb-btn-cancel-request', function () {
         var bookingId = $(this).data('tsrb-cancel-booking-id');
-        if (!bookingId) {
-            return;
-        }
+        if (!bookingId) { return; }
 
         var $row = $('.tsrb-user-booking-row[data-tsrb-booking-id="' + bookingId + '"]').first();
         var summaryText = '';
 
         if ($row.length) {
-            var date  = $row.data('tsrb-booking-date') || $row.find('.tsrb-user-booking-date').text();
-            var time  = $row.data('tsrb-booking-start') && $row.data('tsrb-booking-end')
+            var date   = $row.data('tsrb-booking-date') || $row.find('.tsrb-user-booking-date').text();
+            var time   = $row.data('tsrb-booking-start') && $row.data('tsrb-booking-end')
                 ? ($row.data('tsrb-booking-start') + ' - ' + $row.data('tsrb-booking-end'))
                 : $row.find('.tsrb-user-booking-time').text();
             var studio = $row.data('tsrb-booking-studio') || $row.find('.tsrb-user-booking-studio').text();
@@ -1703,9 +1674,7 @@ jQuery(document).ready(function ($) {
         }
 
         var $modal = $('.tsrb-modal-cancel-request');
-        if (!$modal.length) {
-            return;
-        }
+        if (!$modal.length) { return; }
 
         $modal.data('tsrb-cancel-booking-id', bookingId);
         $modal.find('.tsrb-modal-cancel-booking-summary').text(summaryText);
@@ -1779,22 +1748,19 @@ jQuery(document).ready(function ($) {
                 }).addClass('tsrb-user-booking-row-status-cancel_requested');
 
                 $row.find('.tsrb-user-booking-status').text('Pengajuan Pembatalan');
-
                 $row.find('.tsrb-btn-cancel-request').remove();
                 $row.find('.tsrb-user-booking-actions').each(function () {
                     var $actions = $(this);
                     if (!$actions.find('.tsrb-user-booking-cancel-requested-label').length) {
                         $('<span>', {
                             class: 'tsrb-user-booking-cancel-requested-label',
-                            text: 'Sedang diproses admin'
+                            text:  'Sedang diproses admin'
                         }).appendTo($actions);
                     }
                 });
             }
 
-            setTimeout(function () {
-                $modal.hide();
-            }, 1200);
+            setTimeout(function () { $modal.hide(); }, 1200);
         }).fail(function () {
             $successBox.hide();
             $errorBox.text('Terjadi kesalahan koneksi.').show();
@@ -1809,4 +1775,5 @@ jQuery(document).ready(function ($) {
     if (initialUser) {
         applyLoggedInUserToUI(initialUser);
     }
+
 });

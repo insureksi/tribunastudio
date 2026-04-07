@@ -241,15 +241,14 @@ class Tribuna_Admin {
 	}
 
 	/**
-	 * Register settings (tsrb_settings_group / tsrbsettings).
+	 * Register settings (tsrb_settings_group / tsrb_settings).
 	 *
-	 * Kita simpan ke option baru 'tsrbsettings' agar konsisten dengan form,
-	 * tapi tetap baca 'tsrb_settings' di sanitize_settings sebagai fallback data lama.
+	 * Kita simpan ke option utama 'tsrb_settings'.
 	 */
 	public function register_settings() {
 		register_setting(
 			'tsrb_settings_group',
-			'tsrbsettings',
+			'tsrb_settings',
 			array( $this, 'sanitize_settings' )
 		);
 	}
@@ -271,20 +270,12 @@ class Tribuna_Admin {
 	 * @return array
 	 */
 	public function sanitize_settings( $settings ) {
-		// Ambil option baru sebagai basis utama.
-		$new = get_option( 'tsrbsettings', array() );
-		if ( ! is_array( $new ) ) {
-			$new = array();
+		// Basis ambil dari helper (satu sumber utama tsrb_settings + defaults).
+		$old = Tribuna_Helpers::get_settings();
+		if ( ! is_array( $old ) ) {
+			$old = array();
 		}
 
-		// Ambil option lama 'tsrb_settings' sebagai sumber fallback untuk migrasi.
-		$old_legacy = get_option( 'tsrb_settings', array() );
-		if ( ! is_array( $old_legacy ) ) {
-			$old_legacy = array();
-		}
-
-		// Gabungkan keduanya, new lebih diutamakan.
-		$old   = wp_parse_args( $new, $old_legacy );
 		$clean = $old;
 
 		// ---------- GENERAL ----------
@@ -351,27 +342,27 @@ class Tribuna_Admin {
 		$email_defaults = array(
 			'customer_new_subject'        => __( 'Your booking request has been received', 'tribuna-studio-rent-booking' ),
 			'customer_new_body'           => __(
-				"Hi {customer_name},\\n\\nThank you for your booking request for {studio_name} on {booking_date} at {start_time}.\\n\\nTotal: {total}\\nStatus: {status}\\n\\nBest regards,\\n{site_name}",
+				"Hi {customer_name},\n\nThank you for your booking request for {studio_name} on {booking_date} at {start_time}.\n\nTotal: {total}\nStatus: {status}\n\nBest regards,\n{site_name}",
 				'tribuna-studio-rent-booking'
 			),
 			'customer_paid_subject'       => __( 'Your booking is confirmed', 'tribuna-studio-rent-booking' ),
 			'customer_paid_body'          => __(
-				"Hi {customer_name},\\n\\nYour booking is now confirmed.\\n\\nStudio: {studio_name}\\nDate: {booking_date}\\nTime: {start_time} - {end_time}\\nTotal: {total}\\n\\nWe look forward to seeing you.\\n{site_name}",
+				"Hi {customer_name},\n\nYour booking is now confirmed.\n\nStudio: {studio_name}\nDate: {booking_date}\nTime: {start_time} - {end_time}\nTotal: {total}\n\nWe look forward to seeing you.\n{site_name}",
 				'tribuna-studio-rent-booking'
 			),
 			'customer_cancel_subject'     => __( 'Your booking has been cancelled', 'tribuna-studio-rent-booking' ),
 			'customer_cancel_body'        => __(
-				"Hi {customer_name},\\n\\nYour booking for {studio_name} on {booking_date} has been cancelled.\\n\\nIf this was not intended, please contact us.\\n{site_name}",
+				"Hi {customer_name},\n\nYour booking for {studio_name} on {booking_date} has been cancelled.\n\nIf this was not intended, please contact us.\n{site_name}",
 				'tribuna-studio-rent-booking'
 			),
 			'admin_new_subject'           => __( 'New booking received', 'tribuna-studio-rent-booking' ),
 			'admin_new_body'              => __(
-				"New booking received:\\n\\nCustomer: {customer_name}\\nStudio: {studio_name}\\nDate: {booking_date}\\nTime: {start_time} - {end_time}\\nTotal: {total}\\nStatus: {status}\\n\\nBooking ID: {booking_id}",
+				"New booking received:\n\nCustomer: {customer_name}\nStudio: {studio_name}\nDate: {booking_date}\nTime: {start_time} - {end_time}\nTotal: {total}\nStatus: {status}\n\nBooking ID: {booking_id}",
 				'tribuna-studio-rent-booking'
 			),
 			'customer_reschedule_subject' => __( 'Your booking has been rescheduled', 'tribuna-studio-rent-booking' ),
 			'customer_reschedule_body'    => __(
-				"Hi {customer_name},\\n\\nYour booking has been rescheduled.\\n\\nStudio: {studio_name}\\nOld schedule: {old_booking_date}, {old_start_time} - {old_end_time}\\nNew schedule: {booking_date}, {start_time} - {end_time}\\nTotal (unchanged): {total}\\nStatus: {status}\\n\\nIf you did not request this change, please contact us.\\n{site_name}",
+				"Hi {customer_name},\n\nYour booking has been rescheduled.\n\nStudio: {studio_name}\nOld schedule: {old_booking_date}, {old_start_time} - {old_end_time}\nNew schedule: {booking_date}, {start_time} - {end_time}\nTotal (unchanged): {total}\nStatus: {status}\n\nIf you did not request this change, please contact us.\n{site_name}",
 				'tribuna-studio-rent-booking'
 			),
 		);
@@ -396,108 +387,138 @@ class Tribuna_Admin {
 
 		// ---------- WORKFLOW & POLICIES ----------
 		$workflow_defaults = array(
-			'auto_cancel_unpaid_hours'          => 0,
-			'auto_cancel_unpaid_same_day_hours' => 0,
-			'min_lead_time_hours'               => 0,
-			'require_manual_approval'           => 0,
-
+			// Auto-cancel & lead time.
+			'auto_cancel_unpaid_hours'         => 0,
+			'auto_cancel_unpaid_sameday_hours' => 0,
+			'min_lead_time_hours'              => 0,
+			'require_manual_approval'          => 0,
 			// Field baru untuk informasi ke pelanggan.
-			'booking_reschedule_policy_text'    => '',
-			'cancel_refund_policy_text'         => '',
-
+			'booking_reschedule_policy_text'   => '',
+			'cancel_refund_policy_text'        => '',
 			// Field lama tetap disimpan sebagai legacy/fallback.
-			'cancellation_policy_text'          => '',
-
-			'prevent_new_if_pending_payment'    => 0,
-			'max_active_bookings_per_user'      => 0,
-			'allow_member_reschedule'           => 0,
-			'reschedule_cutoff_hours'           => 0,
-			'reschedule_allow_pending'          => 0,
-			'reschedule_admin_only'             => 0,
+			'cancellation_policy_text'         => '',
+			// Guard booking.
+			'prevent_new_if_pending_payment'   => 0,
+			'max_active_bookings_per_user'     => 0,
+			// Aturan reschedule.
+			'allow_member_reschedule'          => 0,
+			'reschedule_cutoff_hours'          => 0,
+			'reschedule_allow_pending'         => 0,
+			'reschedule_admin_only'            => 0,
 			// Batas waktu pembayaran dalam jam untuk timer & auto-expire.
-			'payment_deadline_hours'            => 0,
+			'payment_deadline_hours'           => 0,
 			// Aturan refund & credit.
-			'refund_full_hours_before'          => 24,
-			'refund_partial_hours_before'       => 3,
-			'refund_partial_percent'            => 70,
-			'refund_no_refund_inside_hours'     => 0,
-			// NEW: izinkan member request cancellation.
-			'allow_member_cancel'               => 0,
+			'refund_full_hours_before'         => 24,
+			'refund_partial_hours_before'      => 3,
+			'refund_partial_percent'           => 70,
+			'refund_no_refund_inside_hours'    => 0,
+			// Izinkan member request cancellation.
+			'allow_member_cancel'              => 0,
 		);
 
 		$existing_workflow = isset( $old['workflow'] ) && is_array( $old['workflow'] ) ? $old['workflow'] : array();
 		$wf_in             = isset( $settings['workflow'] ) && is_array( $settings['workflow'] ) ? $settings['workflow'] : array();
 
+		// Backward-compat: map key lama ke baru jika masih ada.
+		if ( isset( $existing_workflow['autocancel_unpaid_hours'] ) && ! isset( $existing_workflow['auto_cancel_unpaid_hours'] ) ) {
+			$existing_workflow['auto_cancel_unpaid_hours'] = (int) $existing_workflow['autocancel_unpaid_hours'];
+		}
+		if ( isset( $existing_workflow['autocancel_unpaid_sameday_hours'] ) && ! isset( $existing_workflow['auto_cancel_unpaid_sameday_hours'] ) ) {
+			$existing_workflow['auto_cancel_unpaid_sameday_hours'] = (int) $existing_workflow['autocancel_unpaid_sameday_hours'];
+		}
+		// Jaga juga varian typo lama.
+		if ( isset( $existing_workflow['auto_cancel_unpaid_same_day_hours'] ) && ! isset( $existing_workflow['auto_cancel_unpaid_sameday_hours'] ) ) {
+			$existing_workflow['auto_cancel_unpaid_sameday_hours'] = (int) $existing_workflow['auto_cancel_unpaid_same_day_hours'];
+		}
+
 		$merged_workflow = wp_parse_args( $existing_workflow, $workflow_defaults );
 
-		$clean['workflow'] = array(
-			'auto_cancel_unpaid_hours'          => isset( $wf_in['auto_cancel_unpaid_hours'] )
-				? max( 0, (int) $wf_in['auto_cancel_unpaid_hours'] )
-				: ( isset( $merged_workflow['auto_cancel_unpaid_hours'] ) ? max( 0, (int) $merged_workflow['auto_cancel_unpaid_hours'] ) : 0 ),
+		// FIX: Jika form tidak mengirim 'workflow' (misalnya saat save tab Email),
+		// jangan reset semua checkbox ke 0. Pertahankan workflow lama apa adanya.
+		if ( empty( $wf_in ) ) {
+			$clean['workflow'] = $merged_workflow;
+		} else {
+			$clean['workflow'] = array(
+				'auto_cancel_unpaid_hours'         => isset( $wf_in['auto_cancel_unpaid_hours'] )
+					? max( 0, (int) $wf_in['auto_cancel_unpaid_hours'] )
+					: max( 0, (int) $merged_workflow['auto_cancel_unpaid_hours'] ),
 
-			'auto_cancel_unpaid_same_day_hours' => isset( $wf_in['auto_cancel_unpaid_same_day_hours'] )
-				? max( 0, (int) $wf_in['auto_cancel_unpaid_same_day_hours'] )
-				: ( isset( $merged_workflow['auto_cancel_unpaid_same_day_hours'] ) ? max( 0, (int) $merged_workflow['auto_cancel_unpaid_same_day_hours'] ) : 0 ),
+				'auto_cancel_unpaid_sameday_hours' => isset( $wf_in['auto_cancel_unpaid_sameday_hours'] )
+					? max( 0, (int) $wf_in['auto_cancel_unpaid_sameday_hours'] )
+					: max( 0, (int) $merged_workflow['auto_cancel_unpaid_sameday_hours'] ),
 
-			'min_lead_time_hours'               => isset( $wf_in['min_lead_time_hours'] )
-				? max( 0, (int) $wf_in['min_lead_time_hours'] )
-				: ( isset( $merged_workflow['min_lead_time_hours'] ) ? max( 0, (int) $merged_workflow['min_lead_time_hours'] ) : 0 ),
+				'min_lead_time_hours'              => isset( $wf_in['min_lead_time_hours'] )
+					? max( 0, (int) $wf_in['min_lead_time_hours'] )
+					: max( 0, (int) $merged_workflow['min_lead_time_hours'] ),
 
-			'require_manual_approval'           => ! empty( $wf_in['require_manual_approval'] ) ? 1 : 0,
+				'require_manual_approval'          => isset( $wf_in['require_manual_approval'] )
+					? ( ! empty( $wf_in['require_manual_approval'] ) ? 1 : 0 )
+					: ( ! empty( $merged_workflow['require_manual_approval'] ) ? 1 : 0 ),
 
-			'cancellation_policy_text'          => isset( $wf_in['cancellation_policy_text'] )
-				? wp_kses_post( $wf_in['cancellation_policy_text'] )
-				: ( isset( $merged_workflow['cancellation_policy_text'] ) ? wp_kses_post( $merged_workflow['cancellation_policy_text'] ) : '' ),
+				'cancellation_policy_text'         => isset( $wf_in['cancellation_policy_text'] )
+					? wp_kses_post( $wf_in['cancellation_policy_text'] )
+					: ( isset( $merged_workflow['cancellation_policy_text'] ) ? wp_kses_post( $merged_workflow['cancellation_policy_text'] ) : '' ),
 
-			// Field baru: kebijakan booking & reschedule.
-			'booking_reschedule_policy_text'    => isset( $wf_in['booking_reschedule_policy_text'] )
-				? wp_kses_post( $wf_in['booking_reschedule_policy_text'] )
-				: ( isset( $merged_workflow['booking_reschedule_policy_text'] ) ? wp_kses_post( $merged_workflow['booking_reschedule_policy_text'] ) : '' ),
+				// Field baru: kebijakan booking & reschedule.
+				'booking_reschedule_policy_text'   => isset( $wf_in['booking_reschedule_policy_text'] )
+					? wp_kses_post( $wf_in['booking_reschedule_policy_text'] )
+					: ( isset( $merged_workflow['booking_reschedule_policy_text'] ) ? wp_kses_post( $merged_workflow['booking_reschedule_policy_text'] ) : '' ),
 
-			// Field baru: kebijakan cancellation & refund.
-			'cancel_refund_policy_text'         => isset( $wf_in['cancel_refund_policy_text'] )
-				? wp_kses_post( $wf_in['cancel_refund_policy_text'] )
-				: ( isset( $merged_workflow['cancel_refund_policy_text'] ) ? wp_kses_post( $merged_workflow['cancel_refund_policy_text'] ) : '' ),
+				// Field baru: kebijakan cancellation & refund.
+				'cancel_refund_policy_text'        => isset( $wf_in['cancel_refund_policy_text'] )
+					? wp_kses_post( $wf_in['cancel_refund_policy_text'] )
+					: ( isset( $merged_workflow['cancel_refund_policy_text'] ) ? wp_kses_post( $merged_workflow['cancel_refund_policy_text'] ) : '' ),
 
-			'prevent_new_if_pending_payment'    => ! empty( $wf_in['prevent_new_if_pending_payment'] ) ? 1 : 0,
+				'prevent_new_if_pending_payment'   => isset( $wf_in['prevent_new_if_pending_payment'] )
+					? ( ! empty( $wf_in['prevent_new_if_pending_payment'] ) ? 1 : 0 )
+					: ( ! empty( $merged_workflow['prevent_new_if_pending_payment'] ) ? 1 : 0 ),
 
-			'max_active_bookings_per_user'      => isset( $wf_in['max_active_bookings_per_user'] )
-				? max( 0, (int) $wf_in['max_active_bookings_per_user'] )
-				: ( isset( $merged_workflow['max_active_bookings_per_user'] ) ? max( 0, (int) $merged_workflow['max_active_bookings_per_user'] ) : 0 ),
+				'max_active_bookings_per_user'     => isset( $wf_in['max_active_bookings_per_user'] )
+					? max( 0, (int) $wf_in['max_active_bookings_per_user'] )
+					: max( 0, (int) $merged_workflow['max_active_bookings_per_user'] ),
 
-			'allow_member_reschedule'           => ! empty( $wf_in['allow_member_reschedule'] ) ? 1 : 0,
+				'allow_member_reschedule'          => isset( $wf_in['allow_member_reschedule'] )
+					? ( ! empty( $wf_in['allow_member_reschedule'] ) ? 1 : 0 )
+					: ( ! empty( $merged_workflow['allow_member_reschedule'] ) ? 1 : 0 ),
 
-			'reschedule_cutoff_hours'           => isset( $wf_in['reschedule_cutoff_hours'] )
-				? max( 0, (int) $wf_in['reschedule_cutoff_hours'] )
-				: ( isset( $merged_workflow['reschedule_cutoff_hours'] ) ? max( 0, (int) $merged_workflow['reschedule_cutoff_hours'] ) : 0 ),
+				'reschedule_cutoff_hours'          => isset( $wf_in['reschedule_cutoff_hours'] )
+					? max( 0, (int) $wf_in['reschedule_cutoff_hours'] )
+					: max( 0, (int) $merged_workflow['reschedule_cutoff_hours'] ),
 
-			'reschedule_allow_pending'          => ! empty( $wf_in['reschedule_allow_pending'] ) ? 1 : 0,
+				'reschedule_allow_pending'         => isset( $wf_in['reschedule_allow_pending'] )
+					? ( ! empty( $wf_in['reschedule_allow_pending'] ) ? 1 : 0 )
+					: ( ! empty( $merged_workflow['reschedule_allow_pending'] ) ? 1 : 0 ),
 
-			'reschedule_admin_only'             => ! empty( $wf_in['reschedule_admin_only'] ) ? 1 : 0,
+				'reschedule_admin_only'            => isset( $wf_in['reschedule_admin_only'] )
+					? ( ! empty( $wf_in['reschedule_admin_only'] ) ? 1 : 0 )
+					: ( ! empty( $merged_workflow['reschedule_admin_only'] ) ? 1 : 0 ),
 
-			'payment_deadline_hours'            => isset( $wf_in['payment_deadline_hours'] )
-				? max( 0, (int) $wf_in['payment_deadline_hours'] )
-				: ( isset( $merged_workflow['payment_deadline_hours'] ) ? max( 0, (int) $merged_workflow['payment_deadline_hours'] ) : 0 ),
+				'payment_deadline_hours'           => isset( $wf_in['payment_deadline_hours'] )
+					? max( 0, (int) $wf_in['payment_deadline_hours'] )
+					: max( 0, (int) $merged_workflow['payment_deadline_hours'] ),
 
-			'refund_full_hours_before'          => isset( $wf_in['refund_full_hours_before'] )
-				? max( 0, (int) $wf_in['refund_full_hours_before'] )
-				: ( isset( $merged_workflow['refund_full_hours_before'] ) ? max( 0, (int) $merged_workflow['refund_full_hours_before'] ) : 24 ),
+				'refund_full_hours_before'         => isset( $wf_in['refund_full_hours_before'] )
+					? max( 0, (int) $wf_in['refund_full_hours_before'] )
+					: max( 0, (int) $merged_workflow['refund_full_hours_before'] ),
 
-			'refund_partial_hours_before'       => isset( $wf_in['refund_partial_hours_before'] )
-				? max( 0, (int) $wf_in['refund_partial_hours_before'] )
-				: ( isset( $merged_workflow['refund_partial_hours_before'] ) ? max( 0, (int) $merged_workflow['refund_partial_hours_before'] ) : 3 ),
+				'refund_partial_hours_before'      => isset( $wf_in['refund_partial_hours_before'] )
+					? max( 0, (int) $wf_in['refund_partial_hours_before'] )
+					: max( 0, (int) $merged_workflow['refund_partial_hours_before'] ),
 
-			'refund_partial_percent'            => isset( $wf_in['refund_partial_percent'] )
-				? max( 0, min( 100, (int) $wf_in['refund_partial_percent'] ) )
-				: ( isset( $merged_workflow['refund_partial_percent'] ) ? max( 0, min( 100, (int) $merged_workflow['refund_partial_percent'] ) ) : 70 ),
+				'refund_partial_percent'           => isset( $wf_in['refund_partial_percent'] )
+					? max( 0, min( 100, (int) $wf_in['refund_partial_percent'] ) )
+					: max( 0, min( 100, (int) $merged_workflow['refund_partial_percent'] ) ),
 
-			'refund_no_refund_inside_hours'     => isset( $wf_in['refund_no_refund_inside_hours'] )
-				? max( 0, (int) $wf_in['refund_no_refund_inside_hours'] )
-				: ( isset( $merged_workflow['refund_no_refund_inside_hours'] ) ? max( 0, (int) $merged_workflow['refund_no_refund_inside_hours'] ) : 0 ),
+				'refund_no_refund_inside_hours'    => isset( $wf_in['refund_no_refund_inside_hours'] )
+					? max( 0, (int) $wf_in['refund_no_refund_inside_hours'] )
+					: max( 0, (int) $merged_workflow['refund_no_refund_inside_hours'] ),
 
-			// PERBAIKAN: checkbox dibaca murni dari input baru; jika tidak dicentang, nilainya 0.
-			'allow_member_cancel'               => ! empty( $wf_in['allow_member_cancel'] ) ? 1 : 0,
-		);
+				// Checkbox untuk request cancellation oleh member.
+				'allow_member_cancel'              => isset( $wf_in['allow_member_cancel'] )
+					? ( ! empty( $wf_in['allow_member_cancel'] ) ? 1 : 0 )
+					: ( ! empty( $merged_workflow['allow_member_cancel'] ) ? 1 : 0 ),
+			);
+		}
 
 		// ---------- INTEGRATIONS ----------
 		$integrations_defaults = array(
@@ -689,13 +710,8 @@ class Tribuna_Admin {
 			wp_die( esc_html__( 'You do not have permission to access this page.', 'tribuna-studio-rent-booking' ) );
 		}
 
-		// Utamakan option baru tsrbsettings, fallback ke tsrb_settings jika kosong.
-		$settings_new = get_option( 'tsrbsettings', null );
-		if ( is_array( $settings_new ) ) {
-			$settings = $settings_new;
-		} else {
-			$settings = get_option( 'tsrb_settings', array() );
-		}
+		// Ambil dari helper (satu sumber utama tsrb_settings).
+		$settings = Tribuna_Helpers::get_settings();
 
 		include TSRB_PLUGIN_DIR . 'admin/views/settings.php';
 	}

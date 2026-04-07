@@ -24,7 +24,11 @@ class Tribuna_Database {
 
 		$sql = array();
 
-		// Bookings table (sudah termasuk kolom Cancellation & Refund).
+		// Bookings table.
+		// Kolom addons_price ditambahkan setelah addons untuk menyimpan
+		// total harga add-ons saat booking dibuat, sehingga invoice dapat
+		// menampilkan sub-total add-ons yang akurat tanpa perlu re-query
+		// tabel studio_addons (yang harganya bisa berubah di kemudian hari).
 		$sql[] = "CREATE TABLE {$bookings_table} (
 id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
 user_id BIGINT(20) UNSIGNED NULL,
@@ -37,6 +41,7 @@ start_time TIME NOT NULL,
 end_time TIME NOT NULL,
 duration INT(11) NOT NULL DEFAULT 1,
 addons TEXT NULL,
+addons_price DECIMAL(12,2) NOT NULL DEFAULT 0,
 total_price DECIMAL(12,2) NOT NULL DEFAULT 0,
 coupon_code VARCHAR(50) NULL,
 discount_amount DECIMAL(12,2) NOT NULL DEFAULT 0,
@@ -125,6 +130,8 @@ KEY status (status)
 
 		// dbDelta akan membuat tabel baru atau menambah kolom yang belum ada,
 		// sehingga aman untuk upgrade di site yang sudah berjalan.
+		// Kolom addons_price akan otomatis ditambahkan ke tabel existing
+		// tanpa perlu DROP/RECREATE tabel.
 		foreach ( $sql as $query ) {
 			dbDelta( $query );
 		}

@@ -495,7 +495,7 @@ class Tribuna_Booking_Model {
 	}
 
 	/**
-	 * Check overlapping booking.
+	 * Check overlapping booking PER STUDIO.
 	 *
 	 * Hanya menghitung booking aktif (pending_payment / paid),
 	 * sehingga booking yang sudah cancelled tidak mengunci slot lagi.
@@ -503,20 +503,26 @@ class Tribuna_Booking_Model {
 	 * @param string   $date       Date Y-m-d.
 	 * @param string   $start_time Time H:i:s.
 	 * @param string   $end_time   Time H:i:s.
+	 * @param int|null $studio_id  Studio ID (wajib untuk multi studio).
 	 * @param int|null $exclude_id Booking ID to exclude (saat reschedule).
 	 * @return bool True jika ada overlapping booking.
 	 */
-	public function has_overlap( $date, $start_time, $end_time, $exclude_id = null ) {
+	public function has_overlap( $date, $start_time, $end_time, $studio_id = null, $exclude_id = null ) {
 		global $wpdb;
 
 		$sql = "SELECT COUNT(*) FROM {$this->table}
 				WHERE date = %s
 				  AND status IN ('pending_payment','paid')
-				  AND NOT ( end_time <= %s OR start_time >= %s )";
+				  AND NOT ( end_time <= %s OR start_time >= %s)";
 
 		$params = array( $date, $start_time, $end_time );
 
-		if ( $exclude_id ) {
+		if ( ! empty( $studio_id ) ) {
+			$sql     .= ' AND studio_id = %d';
+			$params[] = (int) $studio_id;
+		}
+
+		if ( ! empty( $exclude_id ) ) {
 			$sql     .= ' AND id != %d';
 			$params[] = (int) $exclude_id;
 		}
@@ -1039,13 +1045,12 @@ class Tribuna_Booking_Model {
 			return new WP_Error( 'tsrb_reschedule_invalid_status', __( 'This booking cannot be rescheduled in its current status.', 'tribuna-studio-rent-booking' ) );
 		}
 
-		// Gunakan tsrbsettings sebagai sumber utama, fallback tsrb_settings (legacy).
+		// Jika $settings kosong, ambil dari helper (satu sumber utama).
 		if ( empty( $settings ) || ! is_array( $settings ) ) {
-			$new_settings = get_option( 'tsrbsettings', null );
-			if ( is_array( $new_settings ) ) {
-				$settings = $new_settings;
+			if ( class_exists( 'Tribuna_Helpers' ) && method_exists( 'Tribuna_Helpers', 'get_settings' ) ) {
+				$settings = Tribuna_Helpers::get_settings();
 			} else {
-				$settings = get_option( 'tsrb_settings', array() );
+				$settings = array();
 			}
 		}
 
@@ -1092,7 +1097,7 @@ class Tribuna_Booking_Model {
 	}
 
 	public function reschedule_booking( $id, $new_date, $new_start_time, $new_end_time, $changed_by = 0, $settings = array() ) {
-		$id      = (int) $id;
+		$id         = (int) $id;
 		$changed_by = (int) $changed_by;
 
 		$booking = $this->get( $id );
@@ -1100,13 +1105,12 @@ class Tribuna_Booking_Model {
 			return new WP_Error( 'tsrb_reschedule_not_found', __( 'Booking not found.', 'tribuna-studio-rent-booking' ) );
 		}
 
-		// Sama seperti di can_user_reschedule_booking: gunakan tsrbsettings terlebih dahulu.
+		// Jika $settings kosong, ambil dari helper (satu sumber utama).
 		if ( empty( $settings ) || ! is_array( $settings ) ) {
-			$new_settings = get_option( 'tsrbsettings', null );
-			if ( is_array( $new_settings ) ) {
-				$settings = $new_settings;
+			if ( class_exists( 'Tribuna_Helpers' ) && method_exists( 'Tribuna_Helpers', 'get_settings' ) ) {
+				$settings = Tribuna_Helpers::get_settings();
 			} else {
-				$settings = get_option( 'tsrb_settings', array() );
+				$settings = array();
 			}
 		}
 
@@ -1118,7 +1122,10 @@ class Tribuna_Booking_Model {
 			return new WP_Error( 'tsrb_reschedule_lead_time', __( 'The new schedule does not respect the minimal lead time.', 'tribuna-studio-rent-booking' ) );
 		}
 
-		if ( $this->has_overlap( $new_date, $new_start_time, $new_end_time, $id ) ) {
+		// Cek bentrok hanya terhadap booking di studio yang sama.
+		$studio_id = ! empty( $booking->studio_id ) ? (int) $booking->studio_id : null;
+
+		if ( $this->has_overlap( $new_date, $new_start_time, $new_end_time, $studio_id, $id ) ) {
 			return new WP_Error( 'tsrb_reschedule_overlap', __( 'The new schedule overlaps with another booking.', 'tribuna-studio-rent-booking' ) );
 		}
 

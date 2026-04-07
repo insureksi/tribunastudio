@@ -3,223 +3,19 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-// Settings global plugin.
-$settings = get_option( 'tsrbsettings', array() );
+// Settings global plugin dari helper satu sumber utama.
+if ( class_exists( 'Tribuna_Helpers' ) && method_exists( 'Tribuna_Helpers', 'get_settings' ) ) {
+	$settings = Tribuna_Helpers::get_settings();
+} else {
+	$settings = array();
+}
 
 // Workflow & policy.
 $workflow = isset( $settings['workflow'] ) && is_array( $settings['workflow'] ) ? $settings['workflow'] : array();
 
-// Aturan booking (lead time, limit, payment deadline).
-$min_lead_time_hours        = isset( $workflow['min_lead_time_hours'] ) ? (int) $workflow['min_lead_time_hours'] : 0;
-$max_active_bookings_per_user = isset( $workflow['max_active_bookings_per_user'] ) ? (int) $workflow['max_active_bookings_per_user'] : 0;
-$prevent_new_if_pending_payment = ! empty( $workflow['prevent_new_if_pending_payment'] );
-$payment_deadline_hours     = isset( $workflow['payment_deadline_hours'] ) ? (int) $workflow['payment_deadline_hours'] : 0;
-
-// Aturan reschedule.
-$reschedule_cutoff_hours    = isset( $workflow['reschedule_cutoff_hours'] ) ? (int) $workflow['reschedule_cutoff_hours'] : 0;
-
-// Cancellation / refund flags & rules.
-$allow_member_cancel           = ! empty( $workflow['allow_member_cancel'] );
-$refund_full_hours_before      = isset( $workflow['refund_full_hours_before'] ) ? (int) $workflow['refund_full_hours_before'] : 0;
-$refund_partial_hours_before   = isset( $workflow['refund_partial_hours_before'] ) ? (int) $workflow['refund_partial_hours_before'] : 0;
-$refund_partial_percent        = isset( $workflow['refund_partial_percent'] ) ? (int) $workflow['refund_partial_percent'] : 0;
-$refund_no_refund_inside_hours = isset( $workflow['refund_no_refund_inside_hours'] ) ? (int) $workflow['refund_no_refund_inside_hours'] : 0;
-
-// Text kebijakan booking & reschedule dari workflow (bagian 4 di Settings).
-$booking_reschedule_policy_text = '';
-if ( isset( $workflow['booking_reschedule_policy_text'] ) && '' !== trim( (string) $workflow['booking_reschedule_policy_text'] ) ) {
-	$booking_reschedule_policy_text = $workflow['booking_reschedule_policy_text'];
-}
-
-// Text kebijakan cancellation & refund dari workflow (bagian 4 di Settings).
-$cancel_refund_policy_text = '';
-if ( isset( $workflow['cancel_refund_policy_text'] ) && '' !== trim( (string) $workflow['cancel_refund_policy_text'] ) ) {
-	$cancel_refund_policy_text = $workflow['cancel_refund_policy_text'];
-}
-
-// Informasi ke Pelanggan lama (opsional, legacy).
-$customer_info_html = '';
-if ( isset( $settings['customer_info'] ) && '' !== trim( (string) $settings['customer_info'] ) ) {
-	$customer_info_html = wp_kses_post( $settings['customer_info'] );
-}
-
-// Gabungkan sumber teks kebijakan untuk fallback HTML awal modal.
-$booking_policy_html_parts = array();
-
-if ( $customer_info_html ) {
-	$booking_policy_html_parts[] = $customer_info_html;
-}
-
-/**
- * Aturan Booking
- *
- * - Booking hanya dapat dibuat untuk jadwal yang masih tersedia di kalender studio.
- * - Booking harus dibuat minimal X jam sebelum jam mulai (min_lead_time_hours).
- * - Setiap member dapat memiliki maksimal X booking aktif sekaligus (max_active_bookings_per_user).
- * - Jika pembayaran tidak diterima dalam waktu X jam sejak booking dibuat, booking akan dibatalkan otomatis (payment_deadline_hours).
- */
-$booking_rules_lines = array();
-
-$booking_rules_lines[] = __( 'Booking hanya dapat dibuat untuk jadwal yang masih tersedia di kalender studio.', 'tribuna-studio-rent-booking' );
-
-if ( $min_lead_time_hours > 0 ) {
-	$booking_rules_lines[] = sprintf(
-		/* translators: %d: minimal lead time hours */
-		__( 'Booking harus dibuat minimal %d jam sebelum jam mulai.', 'tribuna-studio-rent-booking' ),
-		$min_lead_time_hours
-	);
-}
-
-if ( $max_active_bookings_per_user > 0 ) {
-	$booking_rules_lines[] = sprintf(
-		/* translators: %d: max active bookings per user */
-		__( 'Setiap member dapat memiliki maksimal %d booking aktif sekaligus.', 'tribuna-studio-rent-booking' ),
-		$max_active_bookings_per_user
-	);
-}
-
-if ( $payment_deadline_hours > 0 ) {
-	$booking_rules_lines[] = sprintf(
-		/* translators: %d: payment deadline hours */
-		__( 'Jika pembayaran tidak diterima dalam waktu %d jam sejak booking dibuat, booking akan dibatalkan otomatis.', 'tribuna-studio-rent-booking' ),
-		$payment_deadline_hours
-	);
-}
-
-if ( ! empty( $booking_rules_lines ) ) {
-	ob_start();
-	?>
-	<h5><?php esc_html_e( 'Aturan Booking', 'tribuna-studio-rent-booking' ); ?></h5>
-	<ul>
-		<?php foreach ( $booking_rules_lines as $line ) : ?>
-			<li><?php echo esc_html( $line ); ?></li>
-		<?php endforeach; ?>
-	</ul>
-	<?php
-	$booking_policy_html_parts[] = ob_get_clean();
-}
-
-/**
- * Aturan Reschedule
- *
- * - Perubahan jadwal hanya dapat diajukan dengan menghubungi admin.
- * - Reschedule maksimal X jam sebelum jam mulai booking awal (reschedule_cutoff_hours).
- * - Hanya untuk booking dengan status Sudah Dibayar.
- */
-if ( '' !== trim( (string) $booking_reschedule_policy_text ) ) {
-	// Jika admin sudah isi teks custom untuk booking & reschedule policy, tampilkan apa adanya.
-	$booking_policy_html_parts[] = wp_kses_post( wpautop( $booking_reschedule_policy_text ) );
-} else {
-	$reschedule_lines = array();
-
-	$reschedule_lines[] = __( 'Perubahan jadwal hanya dapat diajukan dengan menghubungi admin (WhatsApp atau e-mail) dan akan diproses jika slot jadwal baru masih tersedia.', 'tribuna-studio-rent-booking' );
-
-	if ( $reschedule_cutoff_hours > 0 ) {
-		$reschedule_lines[] = sprintf(
-			/* translators: %d: reschedule cutoff hours */
-			__( 'Permohonan reschedule dapat diajukan maksimal %d jam sebelum jam mulai booking awal.', 'tribuna-studio-rent-booking' ),
-			$reschedule_cutoff_hours
-		);
-	}
-
-	$reschedule_lines[] = __( 'Reschedule hanya berlaku untuk booking dengan status Sudah Dibayar.', 'tribuna-studio-rent-booking' );
-
-	if ( ! empty( $reschedule_lines ) ) {
-		ob_start();
-		?>
-		<h5><?php esc_html_e( 'Aturan Reschedule', 'tribuna-studio-rent-booking' ); ?></h5>
-		<ul>
-			<?php foreach ( $reschedule_lines as $line ) : ?>
-				<li><?php echo esc_html( $line ); ?></li>
-			<?php endforeach; ?>
-		</ul>
-		<?php
-		$booking_policy_html_parts[] = ob_get_clean();
-	}
-}
-
-/**
- * Aturan Pembatalan & Refund
- *
- * - Refund penuh minimal X jam sebelum mulai (refund_full_hours_before).
- * - Refund parsial Y% jika dibatalkan sebelum X jam dari jam mulai di hari H (refund_partial_hours_before, refund_partial_percent).
- * - Tidak ada refund jika kurang dari X jam sebelum jam mulai (refund_no_refund_inside_hours).
- */
-if ( '' !== trim( (string) $cancel_refund_policy_text ) ) {
-	// Jika admin sudah tulis teks custom untuk cancel & refund policy, tampilkan apa adanya.
-	$booking_policy_html_parts[] = wp_kses_post( wpautop( $cancel_refund_policy_text ) );
-} else {
-	$cancel_lines = array();
-
-	if ( $refund_full_hours_before > 0 ) {
-		$cancel_lines[] = sprintf(
-			/* translators: %d: hours */
-			__( 'Refund penuh diberikan jika pembatalan dilakukan minimal %d jam sebelum jam mulai.', 'tribuna-studio-rent-booking' ),
-			$refund_full_hours_before
-		);
-	}
-
-	if ( $refund_partial_hours_before > 0 && $refund_partial_percent > 0 ) {
-		$cancel_lines[] = sprintf(
-			/* translators: 1: hours, 2: percent */
-			__( 'Refund parsial sebesar %2$d%% diberikan jika pembatalan dilakukan sebelum %1$d jam dari jam mulai di hari H.', 'tribuna-studio-rent-booking' ),
-			$refund_partial_hours_before,
-			$refund_partial_percent
-		);
-	}
-
-	if ( $refund_no_refund_inside_hours > 0 ) {
-		$cancel_lines[] = sprintf(
-			/* translators: %d: hours */
-			__( 'Tidak ada refund jika pembatalan dilakukan kurang dari %d jam sebelum jam mulai.', 'tribuna-studio-rent-booking' ),
-			$refund_no_refund_inside_hours
-		);
-	}
-
-	if ( ! empty( $cancel_lines ) && $allow_member_cancel ) {
-		ob_start();
-		?>
-		<h5><?php esc_html_e( 'Aturan Pembatalan & Refund', 'tribuna-studio-rent-booking' ); ?></h5>
-		<ul>
-			<?php foreach ( $cancel_lines as $line ) : ?>
-				<li><?php echo esc_html( $line ); ?></li>
-			<?php endforeach; ?>
-		</ul>
-		<?php
-		$booking_policy_html_parts[] = ob_get_clean();
-	}
-}
-
-// Jika masih ingin menambahkan ringkasan teknis blokir pending dsb, bisa ditambah di bawah ini secara opsional.
-$auto_policy_bits = array();
-
-// Blokir booking baru jika masih ada Pending Payment aktif.
-if ( $prevent_new_if_pending_payment ) {
-	$auto_policy_bits[] = __( 'Anda tidak dapat membuat booking baru jika masih memiliki booking dengan status Pending Payment untuk tanggal yang akan datang. Selesaikan pembayaran atau batalkan booking tersebut terlebih dahulu.', 'tribuna-studio-rent-booking' );
-}
-
-if ( ! empty( $auto_policy_bits ) ) {
-	$booking_policy_html_parts[] = wp_kses_post(
-		wpautop(
-			implode( "\n\n", $auto_policy_bits )
-		)
-	);
-}
-
-$booking_policy_html = '';
-if ( ! empty( $booking_policy_html_parts ) ) {
-	$booking_policy_html = implode( "\n<hr />\n", $booking_policy_html_parts );
-}
-
-/**
- * Filter untuk menyesuaikan HTML kebijakan booking yang tampil sebagai fallback di modal.
- */
-$booking_policy_html = apply_filters( 'tsrb_booking_policy_html', $booking_policy_html, $settings, $workflow );
-
 // Status login & current user.
-$is_logged_in = isset( $is_logged_in ) ? (bool) $is_logged_in : is_user_logged_in();
-$current_user = isset( $current_user ) ? $current_user : ( $is_logged_in ? wp_get_current_user() : null );
-
+$is_logged_in  = isset( $is_logged_in ) ? (bool) $is_logged_in : is_user_logged_in();
+$current_user  = isset( $current_user ) ? $current_user : ( $is_logged_in ? wp_get_current_user() : null );
 $prefill_name  = ( $is_logged_in && $current_user instanceof WP_User && $current_user->exists() ) ? $current_user->display_name : '';
 $prefill_email = ( $is_logged_in && $current_user instanceof WP_User && $current_user->exists() ) ? $current_user->user_email : '';
 $prefill_phone = '';
@@ -242,6 +38,12 @@ if ( $prefill_name ) {
 // Logout URL: kembali ke halaman booking ini setelah logout.
 $booking_page_url = get_permalink();
 $logout_url       = add_query_arg( 'tsrb_logout', '1', $booking_page_url );
+
+// QR pembayaran (jika ada).
+$payment_qr_url = '';
+if ( ! empty( $settings['payment_qr_image_id'] ) ) {
+	$payment_qr_url = wp_get_attachment_image_url( (int) $settings['payment_qr_image_id'], 'medium' );
+}
 ?>
 <div class="tsrb-booking-wrapper" data-tsrb-logged-in="<?php echo $is_logged_in ? '1' : '0'; ?>">
 
@@ -845,14 +647,14 @@ $logout_url       = add_query_arg( 'tsrb_logout', '1', $booking_page_url );
 <!-- Modal Konfirmasi Booking -->
 <div id="tsrb-booking-success-modal" class="tsrb-account-modal" style="display:none;">
 	<div class="tsrb-account-modal-overlay"></div>
-	<div class="tsrb-account-modal-content tsrb-booking-success-modal-content">
-		<button type="button" class="tsrb-account-modal-close">&times;</button>
-		<div id="tsrb-booking-success-body">
-			<p class="tsrb-info">
-				<?php esc_html_e( 'Memproses booking...', 'tribuna-studio-rent-booking' ); ?>
-			</p>
-		</div>
-	</div>
+ 	<div class="tsrb-account-modal-content tsrb-booking-success-modal-content">
+ 		<button type="button" class="tsrb-account-modal-close">&times;</button>
+ 		<div id="tsrb-booking-success-body">
+ 			<p class="tsrb-info">
+ 				<?php esc_html_e( 'Memproses booking...', 'tribuna-studio-rent-booking' ); ?>
+ 			</p>
+ 		</div>
+ 	</div>
 </div>
 
 <!-- Modal Kebijakan Booking -->
@@ -872,9 +674,8 @@ $logout_url       = add_query_arg( 'tsrb_logout', '1', $booking_page_url );
 		<div class="tsrb-modal-body">
 			<div class="tsrb-booking-policy-body tsrb-modal-booking-policy-body">
 				<?php
-				if ( ! empty( $booking_policy_html ) ) {
-					// Konten fallback dibangun dari workflow dan setting backend.
-					echo $booking_policy_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+				if ( class_exists( 'Tribuna_Helpers' ) && method_exists( 'Tribuna_Helpers', 'get_booking_policy_html' ) ) {
+					echo Tribuna_Helpers::get_booking_policy_html(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 				} else {
 					esc_html_e( 'Belum ada kebijakan booking yang ditampilkan.', 'tribuna-studio-rent-booking' );
 				}

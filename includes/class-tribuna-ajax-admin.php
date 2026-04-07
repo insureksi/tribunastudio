@@ -224,7 +224,12 @@ class Tribuna_Ajax_Admin {
 			);
 		}
 
-		$settings = get_option( 'tsrb_settings', array() );
+		// Ambil settings dari helper (satu sumber utama).
+		if ( class_exists( 'Tribuna_Helpers' ) && method_exists( 'Tribuna_Helpers', 'get_settings' ) ) {
+			$settings = Tribuna_Helpers::get_settings();
+		} else {
+			$settings = array();
+		}
 
 		if ( method_exists( $this->booking_model, 'reschedule_booking' ) ) {
 			$result = $this->booking_model->reschedule_booking(

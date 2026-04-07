@@ -6,13 +6,83 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Tribuna_Helpers {
 
 	/**
+	 * Cached settings agar tidak berulang-ulang get_option di satu request.
+	 *
+	 * @var array|null
+	 */
+	protected static $settings_cache = null;
+
+	/**
+	 * Ambil settings plugin dari satu sumber utama.
+	 *
+	 * - Utama: option baru 'tsrb_settings' (snake case, dipakai Settings API).
+	 * - Fallback sekali: option legacy 'tsrbSettings' (camel case) hanya jika yang baru kosong/bukan array.
+	 * - Merge dengan defaults ringan supaya key penting selalu ada.
+	 *
+	 * Catatan:
+	 * - Timezone tidak lagi disimpan khusus di option; gunakan setting WordPress (timezone_string).
+	 *
+	 * @return array
+	 */
+	public static function get_settings() {
+		if ( null !== self::$settings_cache ) {
+			return self::$settings_cache;
+		}
+
+		$new_settings = get_option( 'tsrb_settings', null );
+
+		if ( ! is_array( $new_settings ) ) {
+			$legacy = get_option( 'tsrbSettings', null );
+			if ( is_array( $legacy ) ) {
+				$new_settings = $legacy;
+			} else {
+				$new_settings = array();
+			}
+		}
+
+		$defaults = array(
+			'hourly_price'        => 75000,
+			'currency'            => 'IDR',
+			'admin_email'         => get_option( 'admin_email' ),
+			'payment_qr_image_id' => 0,
+			'operating_hours'     => array(),
+			'blocked_dates'       => array(),
+			'emails'              => array(),
+			'workflow'            => array(),
+			'integrations'        => array(),
+		);
+
+		$settings = wp_parse_args( is_array( $new_settings ) ? $new_settings : array(), $defaults );
+
+		if ( ! is_array( $settings['workflow'] ) ) {
+			$settings['workflow'] = array();
+		}
+		if ( ! is_array( $settings['emails'] ) ) {
+			$settings['emails'] = array();
+		}
+		if ( ! is_array( $settings['integrations'] ) ) {
+			$settings['integrations'] = array();
+		}
+		if ( ! is_array( $settings['operating_hours'] ) ) {
+			$settings['operating_hours'] = array();
+		}
+		if ( ! is_array( $settings['blocked_dates'] ) ) {
+			$settings['blocked_dates'] = array();
+		}
+
+		self::$settings_cache = $settings;
+
+		return self::$settings_cache;
+	}
+
+	/**
 	 * Format harga sesuai setting plugin.
 	 *
 	 * @param float|int $amount Amount.
 	 * @return string
 	 */
 	public static function format_price( $amount ) {
-		$settings = get_option( 'tsrb_settings', array() );
+		$settings = self::get_settings();
 		$currency = isset( $settings['currency'] ) ? $settings['currency'] : 'IDR';
 
 		return sprintf( '%s %s', $currency, number_format_i18n( $amount, 0 ) );
@@ -35,13 +105,6 @@ class Tribuna_Helpers {
 	 * @return string
 	 */
 	public static function admin_capability() {
-		/**
-		 * Filter: tsrb_admin_capability
-		 *
-		 * Izinkan developer override capability utama plugin jika diperlukan.
-		 * Pastikan capability yang dipakai ditambahkan ke role "administrator"
-		 * pada saat aktivasi / upgrade plugin.
-		 */
 		return apply_filters( 'tsrb_admin_capability', 'manage_tsrb_all' );
 	}
 
@@ -51,11 +114,6 @@ class Tribuna_Helpers {
 	 * @return string
 	 */
 	public static function booking_capability() {
-		/**
-		 * Filter: tsrb_booking_capability
-		 *
-		 * Izinkan override capability booking jika diperlukan.
-		 */
 		return apply_filters( 'tsrb_booking_capability', 'manage_tsrb_bookings' );
 	}
 
@@ -76,8 +134,8 @@ class Tribuna_Helpers {
 			'title'       => '',
 			'description' => '',
 			'start'       => '',
-			'end'         => '',
 			'timezone'    => get_option( 'timezone_string', 'Asia/Jakarta' ),
+			'end'         => '',
 			'location'    => '',
 		);
 
@@ -106,8 +164,6 @@ class Tribuna_Helpers {
 	/**
 	 * Ambil timestamp sekarang berdasarkan timezone WordPress.
 	 *
-	 * Dipakai untuk sinkronisasi timer antara PHP dan JavaScript.
-	 *
 	 * @return int
 	 */
 	public static function get_server_now_timestamp() {
@@ -117,12 +173,7 @@ class Tribuna_Helpers {
 	/**
 	 * Format durasi countdown (dalam detik) menjadi label singkat.
 	 *
-	 * Contoh:
-	 * - 3661  -> "1h 1m"
-	 * - 59    -> "59s"
-	 * - 0/-10 -> "Expired"
-	 *
-	 * @param int $seconds Sisa detik.
+	 * @param int  $seconds               Sisa detik.
 	 * @param bool $allow_zero_as_expired Jika true, 0 atau negatif akan selalu "Expired".
 	 * @return string
 	 */
@@ -150,10 +201,162 @@ class Tribuna_Helpers {
 			$parts[] = sprintf( _n( '%dm', '%dm', $minutes, 'tribuna-studio-rent-booking' ), $minutes );
 		}
 
-		if ( $hours === 0 && $minutes === 0 ) {
+		if ( 0 === $hours && 0 === $minutes ) {
 			$parts[] = sprintf( _n( '%ds', '%ds', $seconds, 'tribuna-studio-rent-booking' ), $seconds );
 		}
 
 		return implode( ' ', $parts );
+	}
+
+	/* ======================================================
+	 *  BOOKING POLICY HTML (dipakai frontpage & dashboard)
+	 * ===================================================== */
+
+	/**
+	 * Bangun HTML kebijakan booking dari workflow.
+	 *
+	 * Dipakai untuk:
+	 * - Modal "Kebijakan Booking" di step 3 frontpage.
+	 * - Bisa juga dipakai di dashboard (Riwayat Booking) agar konsisten.
+	 *
+	 * @return string HTML sudah siap render.
+	 */
+	public static function get_booking_policy_html() {
+		$settings = self::get_settings();
+		$workflow = isset( $settings['workflow'] ) && is_array( $settings['workflow'] )
+			? $settings['workflow']
+			: array();
+
+		// Booking rules.
+		$min_lead_time_hours          = isset( $workflow['min_lead_time_hours'] ) ? (int) $workflow['min_lead_time_hours'] : 0;
+		$max_active_bookings_per_user = isset( $workflow['max_active_bookings_per_user'] ) ? (int) $workflow['max_active_bookings_per_user'] : 0;
+		$payment_deadline_hours       = isset( $workflow['payment_deadline_hours'] ) ? (int) $workflow['payment_deadline_hours'] : 0;
+
+		// Reschedule rules.
+		$reschedule_cutoff_hours  = isset( $workflow['reschedule_cutoff_hours'] ) ? (int) $workflow['reschedule_cutoff_hours'] : 0;
+		$reschedule_allow_pending = ! empty( $workflow['reschedule_allow_pending'] );
+		$reschedule_max_changes   = isset( $workflow['reschedule_max_changes'] ) ? (int) $workflow['reschedule_max_changes'] : 0;
+
+		// Cancellation / refund rules.
+		$refund_full_hours_before      = isset( $workflow['refund_full_hours_before'] ) ? (int) $workflow['refund_full_hours_before'] : 0;
+		$refund_partial_hours_before   = isset( $workflow['refund_partial_hours_before'] ) ? (int) $workflow['refund_partial_hours_before'] : 0;
+		$refund_partial_percent        = isset( $workflow['refund_partial_percent'] ) ? (int) $workflow['refund_partial_percent'] : 0;
+		$refund_no_refund_inside_hours = isset( $workflow['refund_no_refund_inside_hours'] ) ? (int) $workflow['refund_no_refund_inside_hours'] : 0;
+
+		ob_start();
+		?>
+
+		<h5><?php esc_html_e( 'Aturan Booking', 'tribuna-studio-rent-booking' ); ?></h5>
+		<ul>
+			<li><?php esc_html_e( 'Booking hanya dapat dibuat untuk jadwal yang masih tersedia di kalender studio.', 'tribuna-studio-rent-booking' ); ?></li>
+			<?php if ( $min_lead_time_hours > 0 ) : ?>
+				<li>
+					<?php
+					printf(
+						esc_html__( 'Booking harus dibuat minimal %d jam sebelum jam mulai.', 'tribuna-studio-rent-booking' ),
+						(int) $min_lead_time_hours
+					);
+					?>
+				</li>
+			<?php endif; ?>
+			<?php if ( $max_active_bookings_per_user > 0 ) : ?>
+				<li>
+					<?php
+					printf(
+						esc_html__( 'Setiap member dapat memiliki maksimal %d booking aktif sekaligus.', 'tribuna-studio-rent-booking' ),
+						(int) $max_active_bookings_per_user
+					);
+					?>
+				</li>
+			<?php endif; ?>
+			<?php if ( $payment_deadline_hours > 0 ) : ?>
+				<li>
+					<?php
+					printf(
+						esc_html__( 'Jika pembayaran tidak diterima dalam waktu %d jam sejak booking dibuat, booking akan dibatalkan otomatis.', 'tribuna-studio-rent-booking' ),
+						(int) $payment_deadline_hours
+					);
+					?>
+				</li>
+			<?php endif; ?>
+		</ul>
+
+		<h5><?php esc_html_e( 'Aturan Reschedule', 'tribuna-studio-rent-booking' ); ?></h5>
+		<ul>
+			<li>
+				<?php esc_html_e( 'Perubahan jadwal hanya dapat diajukan dengan menghubungi admin (WhatsApp atau e-mail) dan akan diproses jika slot jadwal baru masih tersedia.', 'tribuna-studio-rent-booking' ); ?>
+			</li>
+			<?php if ( $reschedule_cutoff_hours > 0 ) : ?>
+				<li>
+					<?php
+					printf(
+						esc_html__( 'Permohonan reschedule dapat diajukan maksimal %d jam sebelum jam mulai booking awal.', 'tribuna-studio-rent-booking' ),
+						(int) $reschedule_cutoff_hours
+					);
+					?>
+				</li>
+			<?php endif; ?>
+			<li>
+				<?php
+				if ( $reschedule_allow_pending ) {
+					esc_html_e( 'Reschedule hanya berlaku untuk booking dengan status Menunggu Pembayaran dan Sudah Dibayar.', 'tribuna-studio-rent-booking' );
+				} else {
+					esc_html_e( 'Reschedule hanya berlaku untuk booking dengan status Sudah Dibayar.', 'tribuna-studio-rent-booking' );
+				}
+				?>
+			</li>
+			<?php if ( $reschedule_max_changes > 0 ) : ?>
+				<li>
+					<?php
+					printf(
+						esc_html__( 'Setiap booking hanya dapat di-reschedule maksimal %d kali.', 'tribuna-studio-rent-booking' ),
+						(int) $reschedule_max_changes
+					);
+					?>
+				</li>
+			<?php endif; ?>
+		</ul>
+
+		<?php if ( $refund_full_hours_before || $refund_partial_hours_before || $refund_no_refund_inside_hours ) : ?>
+			<h5><?php esc_html_e( 'Aturan Pembatalan & Refund', 'tribuna-studio-rent-booking' ); ?></h5>
+			<ul>
+				<?php if ( $refund_full_hours_before > 0 ) : ?>
+					<li>
+						<?php
+						printf(
+							esc_html__( 'Refund penuh diberikan jika pembatalan dilakukan minimal %d jam sebelum jam mulai.', 'tribuna-studio-rent-booking' ),
+							(int) $refund_full_hours_before
+						);
+						?>
+					</li>
+				<?php endif; ?>
+				<?php if ( $refund_partial_hours_before > 0 && $refund_partial_percent > 0 ) : ?>
+					<li>
+						<?php
+						printf(
+							esc_html__( 'Refund parsial sebesar %1$d%% diberikan jika pembatalan dilakukan sebelum %2$d jam dari jam mulai di hari H.', 'tribuna-studio-rent-booking' ),
+							(int) $refund_partial_percent,
+							(int) $refund_partial_hours_before
+						);
+						?>
+					</li>
+				<?php endif; ?>
+				<?php if ( $refund_no_refund_inside_hours > 0 ) : ?>
+					<li>
+						<?php
+						printf(
+							esc_html__( 'Tidak ada refund jika pembatalan dilakukan kurang dari %d jam sebelum jam mulai.', 'tribuna-studio-rent-booking' ),
+							(int) $refund_no_refund_inside_hours
+						);
+						?>
+					</li>
+				<?php endif; ?>
+			</ul>
+		<?php endif; ?>
+
+		<?php
+		$html = ob_get_clean();
+
+		return apply_filters( 'tsrb_booking_policy_html', $html, $settings, $workflow );
 	}
 }

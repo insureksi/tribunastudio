@@ -278,28 +278,90 @@ class Tribuna_Ajax_Public {
 			);
 		}
 
-		// Ambil studio & addons untuk melengkapi invoice.
+		// Ambil data studio.
 		$studio = null;
 		if ( ! empty( $booking->studio_id ) && $this->studio_model instanceof Tribuna_Studio_Model ) {
 			$studio = $this->studio_model->get( (int) $booking->studio_id );
 		}
 
-		$addons = array();
-		if ( ! empty( $booking->addons ) && $this->addon_model instanceof Tribuna_Addon_Model ) {
-			// Asumsi: booking->addons berisi array ID atau string CSV ID.
-			$addon_ids = is_array( $booking->addons )
-				? array_map( 'absint', $booking->addons )
-				: array_map( 'absint', explode( ',', (string) $booking->addons ) );
-			$addon_ids = array_filter( $addon_ids );
-			if ( ! empty( $addon_ids ) && method_exists( $this->addon_model, 'get_by_ids' ) ) {
-				$addons = $this->addon_model->get_by_ids( $addon_ids );
+		/*
+		 * FIX: Ambil add-ons dari tabel studio_addons menggunakan nama yang tersimpan
+		 * di kolom $booking->addons (format: string CSV nama, misal "Lighting Kit, Backdrop").
+		 *
+		 * Cara lama (salah): mencoba parse $booking->addons sebagai CSV of IDs → selalu kosong
+		 * karena kolom addons menyimpan NAMA bukan ID.
+		 *
+		 * Cara baru (benar): query tabel studio_addons berdasarkan nama yang cocok,
+		 * sehingga kita bisa menampilkan harga per item di invoice.
+		 * Jika nama add-on sudah berubah di admin setelah booking dibuat, fallback
+		 * ke menampilkan nama dari string booking->addons saja (tanpa harga per item),
+		 * dan gunakan addons_price dari kolom DB sebagai sub-total.
+		 */
+		$addon_items   = array(); // array of objects { name, price }.
+		$addons_string = isset( $booking->addons ) ? trim( (string) $booking->addons ) : '';
+
+		if ( '' !== $addons_string && $this->addon_model instanceof Tribuna_Addon_Model ) {
+			// Parse nama-nama add-on dari string CSV.
+			$addon_names_from_booking = array_filter(
+				array_map( 'trim', explode( ',', $addons_string ) )
+			);
+
+			if ( ! empty( $addon_names_from_booking ) ) {
+				// Query semua add-on dari DB (tanpa filter status agar add-on lama tetap terbaca).
+				$all_addons_db = $this->addon_model->get_all();
+
+				// Buat lookup: name (lowercase) → addon object.
+				$addon_lookup = array();
+				if ( ! empty( $all_addons_db ) ) {
+					foreach ( $all_addons_db as $db_addon ) {
+						$addon_lookup[ strtolower( trim( $db_addon->name ) ) ] = $db_addon;
+					}
+				}
+
+				foreach ( $addon_names_from_booking as $addon_name ) {
+					$key = strtolower( $addon_name );
+					if ( isset( $addon_lookup[ $key ] ) ) {
+						// Nama cocok → gunakan data dari DB (termasuk harga terkini saat booking dibuat).
+						$addon_items[] = (object) array(
+							'name'  => $addon_lookup[ $key ]->name,
+							'price' => (float) $addon_lookup[ $key ]->price,
+						);
+					} else {
+						// Nama tidak ditemukan di DB (mungkin sudah dihapus/diganti nama).
+						// Tetap tampilkan nama, harga 0 (akan di-cover oleh addons_price kolom DB).
+						$addon_items[] = (object) array(
+							'name'  => $addon_name,
+							'price' => 0.0,
+						);
+					}
+				}
 			}
 		}
 
+		/*
+		 * FIX: Sub-total add-ons.
+		 *
+		 * Prioritas:
+		 * 1. Gunakan $booking->addons_price jika kolom ada dan nilainya > 0
+		 *    (booking baru setelah perbaikan, nilai akurat saat booking dibuat).
+		 * 2. Fallback: hitung ulang dari $addon_items yang berhasil di-match dari DB
+		 *    (booking lama, harga mungkin sudah berubah tapi lebih baik dari 0).
+		 * 3. Jika keduanya 0 dan ada add-on tercatat, tampilkan 0 dengan catatan.
+		 */
+		$addons_price_db       = isset( $booking->addons_price ) ? (float) $booking->addons_price : 0.0;
+		$addons_price_computed = 0.0;
+		foreach ( $addon_items as $item ) {
+			$addons_price_computed += $item->price;
+		}
+
+		// Gunakan nilai yang paling akurat: kolom DB lebih dipercaya karena dicatat saat booking.
+		$addons_subtotal = $addons_price_db > 0 ? $addons_price_db : $addons_price_computed;
+
 		$site_name = get_bloginfo( 'name' );
-		$currency  = function_exists( 'Tribuna_Helpers::get_currency' )
-			? Tribuna_Helpers::get_currency()
-			: 'IDR';
+
+		// Ambil currency dari settings (satu sumber utama).
+		$settings = class_exists( 'Tribuna_Helpers' ) ? Tribuna_Helpers::get_settings() : array();
+		$currency = isset( $settings['currency'] ) ? $settings['currency'] : 'IDR';
 
 		// Format helper sederhana.
 		$format_price = function( $amount ) use ( $currency ) {
@@ -380,6 +442,10 @@ class Tribuna_Ajax_Public {
 				.tsrb-invoice-row-total td {
 					font-weight: 600;
 				}
+				.tsrb-invoice-addon-price {
+					color: #555;
+					font-size: 12px;
+				}
 				.tsrb-invoice-footer {
 					margin-top: 24px;
 					font-size: 12px;
@@ -458,6 +524,7 @@ class Tribuna_Ajax_Public {
 						</tr>
 					</thead>
 					<tbody>
+						<!-- Baris 1: Sewa Studio -->
 						<tr>
 							<td>
 								<?php
@@ -479,31 +546,49 @@ class Tribuna_Ajax_Public {
 								<?php echo ' ' . esc_html( (int) $booking->duration ) . ' ' . esc_html__( 'hour(s)', 'tribuna-studio-rent-booking' ); ?>
 							</td>
 							<td>
-								<?php echo esc_html( $format_price( $booking->total_price ) ); ?>
+								<?php
+								// Sub-total sewa studio = total_price dikurangi addons_subtotal.
+								// Ini adalah harga sewa murni (hourly_price × duration) tanpa add-ons.
+								$studio_rent_subtotal = (float) $booking->total_price - $addons_subtotal;
+								if ( $studio_rent_subtotal < 0 ) {
+									$studio_rent_subtotal = 0;
+								}
+								echo esc_html( $format_price( $studio_rent_subtotal ) );
+								?>
 							</td>
 						</tr>
 
+						<!-- Baris 2: Add-ons (FIX: tampilkan nama + harga per item, sub-total dari kolom DB) -->
 						<tr>
 							<td><?php esc_html_e( 'Add-ons', 'tribuna-studio-rent-booking' ); ?></td>
 							<td>
-								<?php
-								if ( ! empty( $addons ) ) {
-									foreach ( $addons as $index => $addon ) {
-										echo esc_html( $addon->name );
-										if ( $index < count( $addons ) - 1 ) {
-											echo '<br>';
-										}
-									}
-								} else {
-									esc_html_e( 'No add-ons', 'tribuna-studio-rent-booking' );
-								}
-								?>
+								<?php if ( ! empty( $addon_items ) ) : ?>
+									<?php foreach ( $addon_items as $idx => $addon_item ) : ?>
+										<?php echo esc_html( $addon_item->name ); ?>
+										<?php if ( $addon_item->price > 0 ) : ?>
+											<span class="tsrb-invoice-addon-price">
+												(<?php echo esc_html( $format_price( $addon_item->price ) ); ?>)
+											</span>
+										<?php endif; ?>
+										<?php if ( $idx < count( $addon_items ) - 1 ) : ?>
+											<br>
+										<?php endif; ?>
+									<?php endforeach; ?>
+								<?php else : ?>
+									<?php esc_html_e( 'No add-ons', 'tribuna-studio-rent-booking' ); ?>
+								<?php endif; ?>
 							</td>
 							<td>
-								<?php echo esc_html( $format_price( $booking->addons_price ?? 0 ) ); ?>
+								<?php
+								// FIX: gunakan $addons_subtotal yang sudah dihitung dengan prioritas:
+								// 1. $booking->addons_price dari DB (akurat, dicatat saat booking)
+								// 2. computed dari nama yang cocok di DB (fallback untuk booking lama)
+								echo esc_html( $format_price( $addons_subtotal ) );
+								?>
 							</td>
 						</tr>
 
+						<!-- Baris 3: Kupon / Diskon -->
 						<tr>
 							<td><?php esc_html_e( 'Coupon / Discount', 'tribuna-studio-rent-booking' ); ?></td>
 							<td>
@@ -527,6 +612,7 @@ class Tribuna_Ajax_Public {
 							</td>
 						</tr>
 
+						<!-- Baris 4: Total -->
 						<tr class="tsrb-invoice-row-total">
 							<td><strong><?php esc_html_e( 'Total', 'tribuna-studio-rent-booking' ); ?></strong></td>
 							<td></td>
@@ -603,13 +689,8 @@ class Tribuna_Ajax_Public {
 			);
 		}
 
-		// Ambil settings dari tsrbsettings (baru), fallback tsrb_settings (legacy).
-		$new_settings = get_option( 'tsrbsettings', null );
-		if ( is_array( $new_settings ) ) {
-			$settings = $new_settings;
-		} else {
-			$settings = get_option( 'tsrb_settings', array() );
-		}
+		// Ambil settings dari helper (satu sumber utama).
+		$settings = Tribuna_Helpers::get_settings();
 
 		$workflow = isset( $settings['workflow'] ) && is_array( $settings['workflow'] ) ? $settings['workflow'] : array();
 
@@ -755,13 +836,8 @@ class Tribuna_Ajax_Public {
 			);
 		}
 
-		// Ambil settings dari tsrbsettings (baru), fallback tsrb_settings (legacy).
-		$new_settings = get_option( 'tsrbsettings', null );
-		if ( is_array( $new_settings ) ) {
-			$settings = $new_settings;
-		} else {
-			$settings = get_option( 'tsrb_settings', array() );
-		}
+		// Ambil settings dari helper (satu sumber utama).
+		$settings = Tribuna_Helpers::get_settings();
 
 		$workflow = isset( $settings['workflow'] ) && is_array( $settings['workflow'] )
 			? $settings['workflow']
@@ -891,13 +967,8 @@ class Tribuna_Ajax_Public {
 			}
 		}
 
-		// Ambil settings dari tsrbsettings (baru), fallback tsrb_settings (legacy).
-		$new_settings = get_option( 'tsrbsettings', null );
-		if ( is_array( $new_settings ) ) {
-			$settings = $new_settings;
-		} else {
-			$settings = get_option( 'tsrb_settings', array() );
-		}
+		// Ambil settings dari helper (satu sumber utama).
+		$settings = Tribuna_Helpers::get_settings();
 
 		$workflow = isset( $settings['workflow'] ) && is_array( $settings['workflow'] )
 			? $settings['workflow']
@@ -972,13 +1043,8 @@ class Tribuna_Ajax_Public {
 			}
 		}
 
-		// Ambil settings dari tsrbsettings (baru), fallback tsrb_settings (legacy).
-		$new_settings = get_option( 'tsrbsettings', null );
-		if ( is_array( $new_settings ) ) {
-			$settings = $new_settings;
-		} else {
-			$settings = get_option( 'tsrb_settings', array() );
-		}
+		// Ambil settings dari helper (satu sumber utama).
+		$settings = Tribuna_Helpers::get_settings();
 
 		$admin_whatsapp = isset( $settings['admin_whatsapp_number'] ) ? trim( $settings['admin_whatsapp_number'] ) : '';
 		$integrations   = isset( $settings['integrations'] ) && is_array( $settings['integrations'] )

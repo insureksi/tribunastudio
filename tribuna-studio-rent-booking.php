@@ -3,7 +3,7 @@
  * Plugin Name: Tribuna Studio Booking System
  * Plugin URI:  https://tribunastudio.com
  * Description: Multi-step studio booking system with admin approval, calendar dashboard, dan aturan pembatalan & refund berbasis jam sebelum mulai.
- * Version:     3.11.0
+ * Version:     3.13.0
  * Author:      Yafet Santo
  * Author URI:  https://tribunastudio.com
  * Text Domain: tribuna-studio-booking-system
@@ -61,20 +61,21 @@ final class Tribuna_Studio_Rent_Booking {
 	/**
 	 * Constructor.
 	 */
-	private function __construct() {
-		$this->define_constants();
-		$this->includes();
+		private function __construct() {
+			$this->define_constants();
+			$this->includes();
 
-		$this->database = new Tribuna_Database();
-		$this->loader   = new Tribuna_Loader();
+			$this->database = new Tribuna_Database();
+			$this->loader   = new Tribuna_Loader();
 
-		$this->set_locale();
-		$this->define_admin_hooks();
-		$this->define_public_hooks();
-		$this->define_ajax_hooks();
+			$this->set_locale();
+			$this->define_admin_hooks();
+			$this->define_public_hooks();
+			$this->define_ajax_hooks(); // <- pastikan ada $this di sini
 
-		$this->loader->run();
-	}
+			$this->loader->run();
+		}
+
 
 	/**
 	 * Define plugin constants.
@@ -169,7 +170,7 @@ final class Tribuna_Studio_Rent_Booking {
 		$this->loader->add_action( 'wp_ajax_tsrb_update_booking_status', $ajax_admin, 'update_booking_status' );
 		$this->loader->add_action( 'wp_ajax_tsrb_get_booking_quick_view', $ajax_admin, 'get_booking_quick_view' );
 
-		// Reschedule & availability admin (baru).
+		// Reschedule & availability admin.
 		$this->loader->add_action( 'wp_ajax_tsrb_get_admin_availability', $ajax_admin, 'get_admin_availability' );
 		$this->loader->add_action( 'wp_ajax_tsrb_admin_reschedule_booking', $ajax_admin, 'admin_reschedule_booking' );
 
@@ -234,6 +235,10 @@ final class Tribuna_Studio_Rent_Booking {
 
 	/**
 	 * Setup database, default settings, and roles/capabilities.
+	 *
+	 * Di sini kita:
+	 * - Gunakan satu option key utama: tsrb_settings (baru, snake case).
+	 * - Migrasi sekali jalan dari tsrb_settings (legacy camel case) jika masih ada.
 	 */
 	public static function activate() {
 		require_once TSRB_PLUGIN_DIR . 'includes/class-tribuna-database.php';
@@ -241,9 +246,21 @@ final class Tribuna_Studio_Rent_Booking {
 		$database = new Tribuna_Database();
 		$database->create_tables();
 
-		// Default settings.
-		$existing_settings = get_option( 'tsrb_settings', false );
-		if ( false === $existing_settings ) {
+		// -------------------------------------------------
+		// 1) Migrasi one-time dari option legacy ke baru.
+		// -------------------------------------------------
+		$legacy_settings = get_option( 'tsrb_settings', null );
+		$new_settings    = get_option( 'tsrb_settings', null );
+
+		if ( null === $new_settings && is_array( $legacy_settings ) ) {
+			update_option( 'tsrb_settings', $legacy_settings );
+			$new_settings = $legacy_settings;
+		}
+
+		// -------------------------------------------------
+		// 2) Inisialisasi default tsrb_settings jika tetap kosong.
+		// -------------------------------------------------
+		if ( null === $new_settings || ! is_array( $new_settings ) ) {
 			$default_settings = array(
 				'hourly_price'        => 75000,
 				'currency'            => 'IDR',
@@ -261,40 +278,85 @@ final class Tribuna_Studio_Rent_Booking {
 				),
 				'blocked_dates'       => array(),
 				'workflow'            => array(
-					'allow_member_reschedule'       => 0,
-					'reschedule_admin_only'         => 0,
-					'payment_deadline_hours'        => 0,
-					'reschedule_cutoff_hours'       => 0,
-					'reschedule_allow_pending'      => 0,
-					'allow_member_cancel'           => 0,
-					'refund_full_hours_before'      => 0,
-					'refund_partial_hours_before'   => 0,
-					'refund_partial_percent'        => 0,
-					'refund_no_refund_inside_hours' => 0,
+					// Auto-cancel & lead time.
+					'auto_cancel_unpaid_hours'       => 0,
+					'auto_cancel_unpaid_sameday_hours' => 0,
+					'min_lead_time_hours'            => 0,
+					'require_manual_approval'        => 0,
+					// Guard booking.
+					'prevent_new_if_pending_payment' => 0,
+					'max_active_bookings_per_user'   => 0,
+					// Reschedule.
+					'allow_member_reschedule'        => 0,
+					'reschedule_cutoff_hours'        => 0,
+					'reschedule_allow_pending'       => 0,
+					'reschedule_admin_only'          => 0,
+					// Payment deadline (timer).
+					'payment_deadline_hours'         => 0,
+					// Cancel & refund.
+					'allow_member_cancel'            => 0,
+					'refund_full_hours_before'       => 0,
+					'refund_partial_hours_before'    => 0,
+					'refund_partial_percent'         => 0,
+					'refund_no_refund_inside_hours'  => 0,
+					// Policy text (bisa diisi di Settings).
+					'booking_reschedule_policy_text' => '',
+					'cancel_refund_policy_text'      => '',
+					'cancellation_policy_text'       => '',
 				),
+				'emails'              => array(),
+				'integrations'        => array(),
 			);
-			add_option( 'tsrb_settings', $default_settings );
+
+			update_option( 'tsrb_settings', $default_settings );
+			$new_settings = $default_settings;
 		} else {
-			if ( ! isset( $existing_settings['workflow'] ) || ! is_array( $existing_settings['workflow'] ) ) {
-				$existing_settings['workflow'] = array();
+			if ( ! isset( $new_settings['workflow'] ) || ! is_array( $new_settings['workflow'] ) ) {
+				$new_settings['workflow'] = array();
 			}
-			$workflow = $existing_settings['workflow'];
+
+			$workflow = $new_settings['workflow'];
+
+			// Backward compatibility: map key lama -> baru jika ada.
+			if ( isset( $workflow['autocancel_unpaid_hours'] ) && ! isset( $workflow['auto_cancel_unpaid_hours'] ) ) {
+				$workflow['auto_cancel_unpaid_hours'] = (int) $workflow['autocancel_unpaid_hours'];
+				unset( $workflow['autocancel_unpaid_hours'] );
+			}
+			if ( isset( $workflow['autocancel_unpaid_sameday_hours'] ) && ! isset( $workflow['auto_cancel_unpaid_sameday_hours'] ) ) {
+				$workflow['auto_cancel_unpaid_sameday_hours'] = (int) $workflow['autocancel_unpaid_sameday_hours'];
+				unset( $workflow['autocancel_unpaid_sameday_hours'] );
+			}
 
 			$defaults_workflow = array(
-				'allow_member_reschedule'       => isset( $workflow['allow_member_reschedule'] ) ? $workflow['allow_member_reschedule'] : 0,
-				'reschedule_admin_only'         => isset( $workflow['reschedule_admin_only'] ) ? $workflow['reschedule_admin_only'] : 0,
-				'payment_deadline_hours'        => isset( $workflow['payment_deadline_hours'] ) ? $workflow['payment_deadline_hours'] : 0,
-				'reschedule_cutoff_hours'       => isset( $workflow['reschedule_cutoff_hours'] ) ? $workflow['reschedule_cutoff_hours'] : 0,
-				'reschedule_allow_pending'      => isset( $workflow['reschedule_allow_pending'] ) ? $workflow['reschedule_allow_pending'] : 0,
-				'allow_member_cancel'           => isset( $workflow['allow_member_cancel'] ) ? $workflow['allow_member_cancel'] : 0,
-				'refund_full_hours_before'      => isset( $workflow['refund_full_hours_before'] ) ? $workflow['refund_full_hours_before'] : 0,
-				'refund_partial_hours_before'   => isset( $workflow['refund_partial_hours_before'] ) ? $workflow['refund_partial_hours_before'] : 0,
-				'refund_partial_percent'        => isset( $workflow['refund_partial_percent'] ) ? $workflow['refund_partial_percent'] : 0,
-				'refund_no_refund_inside_hours' => isset( $workflow['refund_no_refund_inside_hours'] ) ? $workflow['refund_no_refund_inside_hours'] : 0,
+				// Auto-cancel & lead time.
+				'auto_cancel_unpaid_hours'         => isset( $workflow['auto_cancel_unpaid_hours'] ) ? (int) $workflow['auto_cancel_unpaid_hours'] : 0,
+				'auto_cancel_unpaid_sameday_hours' => isset( $workflow['auto_cancel_unpaid_sameday_hours'] ) ? (int) $workflow['auto_cancel_unpaid_sameday_hours'] : 0,
+				'min_lead_time_hours'              => isset( $workflow['min_lead_time_hours'] ) ? (int) $workflow['min_lead_time_hours'] : 0,
+				'require_manual_approval'          => isset( $workflow['require_manual_approval'] ) ? (int) $workflow['require_manual_approval'] : 0,
+				// Guard booking.
+				'prevent_new_if_pending_payment'   => isset( $workflow['prevent_new_if_pending_payment'] ) ? (int) $workflow['prevent_new_if_pending_payment'] : 0,
+				'max_active_bookings_per_user'     => isset( $workflow['max_active_bookings_per_user'] ) ? (int) $workflow['max_active_bookings_per_user'] : 0,
+				// Reschedule.
+				'allow_member_reschedule'          => isset( $workflow['allow_member_reschedule'] ) ? (int) $workflow['allow_member_reschedule'] : 0,
+				'reschedule_cutoff_hours'          => isset( $workflow['reschedule_cutoff_hours'] ) ? (int) $workflow['reschedule_cutoff_hours'] : 0,
+				'reschedule_allow_pending'         => isset( $workflow['reschedule_allow_pending'] ) ? (int) $workflow['reschedule_allow_pending'] : 0,
+				'reschedule_admin_only'            => isset( $workflow['reschedule_admin_only'] ) ? (int) $workflow['reschedule_admin_only'] : 0,
+				// Payment deadline (timer).
+				'payment_deadline_hours'           => isset( $workflow['payment_deadline_hours'] ) ? (int) $workflow['payment_deadline_hours'] : 0,
+				// Cancel & refund.
+				'allow_member_cancel'              => isset( $workflow['allow_member_cancel'] ) ? (int) $workflow['allow_member_cancel'] : 0,
+				'refund_full_hours_before'         => isset( $workflow['refund_full_hours_before'] ) ? (int) $workflow['refund_full_hours_before'] : 0,
+				'refund_partial_hours_before'      => isset( $workflow['refund_partial_hours_before'] ) ? (int) $workflow['refund_partial_hours_before'] : 0,
+				'refund_partial_percent'           => isset( $workflow['refund_partial_percent'] ) ? (int) $workflow['refund_partial_percent'] : 0,
+				'refund_no_refund_inside_hours'    => isset( $workflow['refund_no_refund_inside_hours'] ) ? (int) $workflow['refund_no_refund_inside_hours'] : 0,
+				// Policy text.
+				'booking_reschedule_policy_text'   => isset( $workflow['booking_reschedule_policy_text'] ) ? (string) $workflow['booking_reschedule_policy_text'] : '',
+				'cancel_refund_policy_text'        => isset( $workflow['cancel_refund_policy_text'] ) ? (string) $workflow['cancel_refund_policy_text'] : '',
+				'cancellation_policy_text'         => isset( $workflow['cancellation_policy_text'] ) ? (string) $workflow['cancellation_policy_text'] : '',
 			);
 
-			$existing_settings['workflow'] = $defaults_workflow;
-			update_option( 'tsrb_settings', $existing_settings );
+			$new_settings['workflow'] = $defaults_workflow;
+			update_option( 'tsrb_settings', $new_settings );
 		}
 
 		// Setup roles & capabilities.
@@ -302,7 +364,6 @@ final class Tribuna_Studio_Rent_Booking {
 
 		// Jadwalkan cron untuk auto-cancel unpaid booking jika belum ada.
 		if ( ! wp_next_scheduled( 'tsrb_auto_cancel_unpaid_event' ) ) {
-			// Interval custom didefinisikan di filter cron_schedules (tsrb_add_cron_intervals).
 			wp_schedule_event( time(), 'tsrb_fifteen_minutes', 'tsrb_auto_cancel_unpaid_event' );
 		}
 	}
@@ -376,9 +437,6 @@ final class Tribuna_Studio_Rent_Booking {
 	 * Deactivate callback.
 	 */
 	public static function deactivate() {
-		// Tidak menghapus tabel atau role/cap.
-
-		// Hapus jadwal cron auto-cancel unpaid jika ada.
 		$timestamp = wp_next_scheduled( 'tsrb_auto_cancel_unpaid_event' );
 		if ( $timestamp ) {
 			wp_unschedule_event( $timestamp, 'tsrb_auto_cancel_unpaid_event' );
@@ -392,7 +450,6 @@ endif;
 /**
  * Frontend profile handlers (admin-post).
  */
-
 add_action( 'admin_post_tsrb_update_profile', 'tsrb_handle_update_profile' );
 add_action( 'admin_post_nopriv_tsrb_update_profile', 'tsrb_handle_update_profile' );
 
@@ -432,7 +489,6 @@ function tsrb_handle_update_profile() {
 		exit;
 	}
 
-	// Cek email unik (jika diubah).
 	$existing = get_user_by( 'email', $email );
 	if ( $existing && (int) $existing->ID !== (int) $user_id ) {
 		wp_safe_redirect(
@@ -445,7 +501,6 @@ function tsrb_handle_update_profile() {
 		exit;
 	}
 
-	// Update user core fields.
 	wp_update_user(
 		array(
 			'ID'           => $user_id,
@@ -454,7 +509,6 @@ function tsrb_handle_update_profile() {
 		)
 	);
 
-	// Sinkronisasi first_name dan last_name dengan Full Name.
 	$first_name = '';
 	$last_name  = '';
 
@@ -508,7 +562,6 @@ function tsrb_handle_change_password() {
 	$new_password      = isset( $_POST['new_password'] ) ? (string) wp_unslash( $_POST['new_password'] ) : '';
 	$new_password_conf = isset( $_POST['new_password_confirm'] ) ? (string) wp_unslash( $_POST['new_password_confirm'] ) : '';
 
-	// Jika semua kosong, tidak melakukan apa-apa.
 	if ( '' === $current_password && '' === $new_password && '' === $new_password_conf ) {
 		wp_safe_redirect( wp_get_referer() );
 		exit;
@@ -561,7 +614,6 @@ function tsrb_handle_change_password() {
 
 	wp_set_password( $new_password, $user_id );
 
-	// Setelah set_password, user biasanya logout. Login-kan lagi.
 	wp_set_auth_cookie( $user_id );
 	wp_set_current_user( $user_id );
 
@@ -583,15 +635,13 @@ function tsrb_restrict_member_admin_access() {
 		return;
 	}
 
-	// Admin global / manager tetap boleh.
-if ( current_user_can( 'manage_options' ) || current_user_can( 'manage_tsrb_all' ) ) {
+	if ( current_user_can( 'manage_options' ) || current_user_can( 'manage_tsrb_all' ) ) {
 		return;
 	}
 
 	if ( in_array( 'tribuna_member', (array) $user->roles, true ) ) {
 		$script = isset( $_SERVER['SCRIPT_NAME'] ) ? wp_basename( sanitize_text_field( wp_unslash( $_SERVER['SCRIPT_NAME'] ) ) ) : '';
 
-		// Izinkan admin-ajax & admin-post.
 		if ( in_array( $script, array( 'admin-ajax.php', 'admin-post.php' ), true ) ) {
 			return;
 		}

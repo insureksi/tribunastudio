@@ -58,7 +58,9 @@ class Tribuna_Frontend {
 			true
 		);
 
-		$settings       = get_option( 'tsrb_settings', array() );
+		// Ambil settings terpusat via helper (satu sumber kebenaran).
+		$settings = Tribuna_Helpers::get_settings();
+
 		$admin_whatsapp = isset( $settings['admin_whatsapp_number'] ) ? $settings['admin_whatsapp_number'] : '';
 
 		// Build studios data with hourly prices.
@@ -91,48 +93,74 @@ class Tribuna_Frontend {
 			}
 		}
 
-		// Workflow settings (untuk dipakai JS di form booking, mis. lead time & cancellation).
+		// Workflow settings (untuk dipakai JS di form booking).
 		$workflow = isset( $settings['workflow'] ) && is_array( $settings['workflow'] )
 			? $settings['workflow']
 			: array();
 
+		// Defaults sinkron dengan activation + sanitize_settings + service.
 		$workflow_defaults = array(
-			'auto_cancel_unpaid_hours'        => 0,
-			'min_lead_time_hours'             => 0,
-			'require_manual_approval'         => 0,
-			'cancellation_policy_text'        => '',
-			'allow_member_cancel'             => 0,
-			'refund_full_hours_before'        => 0,
-			'refund_partial_hours_before'     => 0,
-			'refund_partial_percent'          => 0,
-			'refund_no_refund_inside_hours'   => 0,
+			// Auto-cancel & lead time.
+			'auto_cancel_unpaid_hours'         => 0,
+			'auto_cancel_unpaid_sameday_hours' => 0,
+			'min_lead_time_hours'              => 0,
+			'require_manual_approval'          => 0,
+			// Policy text.
+			'cancellation_policy_text'         => '',
+			'booking_reschedule_policy_text'   => '',
+			'cancel_refund_policy_text'        => '',
+			// Guard booking.
+			'prevent_new_if_pending_payment'   => 0,
+			'max_active_bookings_per_user'     => 0,
+			// Reschedule rules.
+			'allow_member_reschedule'          => 0,
+			'reschedule_cutoff_hours'          => 0,
+			'reschedule_allow_pending'         => 0,
+			'reschedule_admin_only'            => 0,
+			// Payment timer.
+			'payment_deadline_hours'           => 0,
+			// Refund & credit rules.
+			'refund_full_hours_before'         => 0,
+			'refund_partial_hours_before'      => 0,
+			'refund_partial_percent'           => 0,
+			'refund_no_refund_inside_hours'    => 0,
+			// Member cancellation.
+			'allow_member_cancel'              => 0,
 		);
+
 		$workflow = wp_parse_args( $workflow, $workflow_defaults );
 
 		wp_localize_script(
 			'tsrb-public',
 			'TSRB_Public',
 			array(
-				'ajax_url'              => admin_url( 'admin-ajax.php' ),
-				'nonce'                 => wp_create_nonce( 'tsrb_public_nonce' ),
-				'currency'              => isset( $settings['currency'] ) ? $settings['currency'] : 'IDR',
-				'studios'               => $studios_data,
-				'payment_qr_url'        => $this->get_payment_qr_url(),
-				'whatsapp_number'       => $admin_whatsapp,
-				'current_user'          => $current_user_data,
-				'min_lead_time_hours'   => (int) $workflow['min_lead_time_hours'],
-				'auto_cancel_unpaid_hr' => (int) $workflow['auto_cancel_unpaid_hours'],
+				'ajax_url'                => admin_url( 'admin-ajax.php' ),
+				'nonce'                   => wp_create_nonce( 'tsrb_public_nonce' ),
+				'currency'                => isset( $settings['currency'] ) ? $settings['currency'] : 'IDR',
+				'studios'                 => $studios_data,
+				'payment_qr_url'          => $this->get_payment_qr_url(),
+				'whatsapp_number'         => $admin_whatsapp,
+				'current_user'            => $current_user_data,
+
+				// Lead time & auto-cancel (dipakai di UI).
+				'min_lead_time_hours'     => (int) $workflow['min_lead_time_hours'],
+				'auto_cancel_unpaid_hour' => (int) $workflow['auto_cancel_unpaid_hours'],
+				'auto_cancel_sameday_hour'=> (int) $workflow['auto_cancel_unpaid_sameday_hours'],
 
 				// URL endpoint untuk HTML invoice (Download Invoice).
-				'invoice_url'           => admin_url( 'admin-ajax.php?action=tsrb_download_invoice_html' ),
+				'invoice_url'             => admin_url( 'admin-ajax.php?action=tsrb_download_invoice_html' ),
 
-				// Info kebijakan pembatalan (kalau mau dipakai di JS).
-				'cancellation_policy'   => array(
+				// Info kebijakan pembatalan & reschedule (untuk ditampilkan di UI).
+				'cancellation_policy'     => array(
 					'allow_member_cancel'           => ! empty( $workflow['allow_member_cancel'] ),
 					'refund_full_hours_before'      => (int) $workflow['refund_full_hours_before'],
 					'refund_partial_hours_before'   => (int) $workflow['refund_partial_hours_before'],
 					'refund_partial_percent'        => (int) $workflow['refund_partial_percent'],
 					'refund_no_refund_inside_hours' => (int) $workflow['refund_no_refund_inside_hours'],
+					// Text policy yang bisa dirender di frontend.
+					'policy_text'                   => wp_kses_post( $workflow['cancellation_policy_text'] ),
+					'cancel_refund_policy_text'     => wp_kses_post( $workflow['cancel_refund_policy_text'] ),
+					'booking_reschedule_policy_text'=> wp_kses_post( $workflow['booking_reschedule_policy_text'] ),
 				),
 			)
 		);
@@ -260,7 +288,7 @@ class Tribuna_Frontend {
 	 * Helper: get payment QR image URL from settings.
 	 */
 	protected function get_payment_qr_url() {
-		$settings = get_option( 'tsrb_settings', array() );
+		$settings = Tribuna_Helpers::get_settings();
 		$id       = isset( $settings['payment_qr_image_id'] ) ? (int) $settings['payment_qr_image_id'] : 0;
 
 		if ( ! $id ) {
